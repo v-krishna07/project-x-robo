@@ -36,13 +36,13 @@ def line_position_estimation(sensor_readings):
 def limit_motor_commands(left, right, max_magnitude):
     """clamping in 0,max"""
     if max_magnitude < 0:
-        return "max_magnitude must be non-negative"
+        raise ValueError("max_magnitude must be non-negative")
 
     def clamp(v):
         if v > max_magnitude:
             return max_magnitude
-        elif v < 0:
-            return 0
+        elif v < -max_magnitude:
+            return -max_magnitude
         else:
             return v
 
