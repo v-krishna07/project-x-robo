@@ -1,25 +1,30 @@
-# Task 2 — Toshiba TB6612FNG Motor Driver Datasheet Analysis
+# Task 2: Motor Driver Datasheet Analysis (18 pts)
 
-### 1. Three Design-Constraining Datasheet Parameters
-
-1. **Motor Supply Voltage ($V_M$):**
-   * **Datasheet Figure:** Absolute maximum rating $V_{M(\text{max})} = 15.0\text{ V}$.
-   * **Design Impact:** A 3S LiPo battery reaches $12.6\text{ V}$, which is dangerously close to $15\text{ V}$ when motors brake or switch direction. We chose a **2S LiPo ($7.4\text{ V}$ nominal, $8.4\text{ V}$ full)** to safely power our 6V N20 motors without blowing the chip.
-
-2. **Resistance ($R_{\text{on}}$) & Output Current ($I_{\text{out}}$):**
-   * **Datasheet Figure:** Total internal switch resistance is typically $0.5\ \Omega$, continuous current is $1.2\text{ A}$ per motor, and peak current is $3.2\text{ A}$.
-   * **Design Impact:** Because the resistance is so small ($0.5\ \Omega$), our motors (drawing around $0.21\text{ A}$) only lose about $0.11\text{ V}$. The chip stays cool and does not need any heavy heatsink like older drivers (such as the L298N).
-
-3. **Logic Voltage ($V_{CC}$) & Input High Threshold ($V_{IN(H)}$):**
-   * **Datasheet Figure:** Logic voltage range $V_{CC} = 2.7\text{ V}\text{ to }5.5\text{ V}$; high signal threshold $V_{IN(H)} = 0.7 \times V_{CC}$.
-   * **Design Impact:** We connect the chip's logic power ($V_{CC}$) to the ESP32 **`3V3` pin ($3.3\text{ V}$)**. This sets the required "HIGH" level to $0.7 \times 3.3\text{ V} = 2.31\text{ V}$. The ESP32's $3.3\text{ V}$ control pins easily exceed this, ensuring reliable motor control.
+We analyze the **Toshiba TB6612FNG** dual motor driver IC (and compare its ratings with the Appendix A **L298N** driver).
 
 ---
 
-### 2. Damaging Condition and Design Protection
+## 1. Three Datasheet Parameters That Constrain the Design
 
-* **Damaging Condition:** **Voltage spike above $15.0\text{ V}$ on $V_M$ or motor stall current above $1.2\text{ A}$.**
-  When moving motors are suddenly stopped or reversed, they send energy backward. This can spike the voltage above $15.0\text{ V}$ and permanently burn the driver's internal switches.
-* **How the Design Avoids It:**
-  1. **Safe Voltage Margin:** Using an $8.4\text{ V}$ max battery leaves a large $6.6\text{ V}$ safety gap below the $15.0\text{ V}$ limit.
-  2. **Capacitors for Protection:** A $470\ \mu\text{F}$ capacitor across power and ground absorbs reverse voltage spikes, and small $0.1\ \mu\text{F}$ capacitors on the motor terminals filter electrical noise.
+1. **Motor Supply Voltage ($V_M$):**
+   * **Datasheet Spec:** Operating range is $4.5\text{ V}$ to $13.5\text{ V}$, with an absolute maximum rating of $15.0\text{ V}$ (`VERIFY` on `robu.in` / Toshiba datasheet).
+   * **How it affected our design:** A fully charged 3S LiPo battery reaches $12.6\text{ V}$, which is too close to the $15.0\text{ V}$ limit when motors brake and create voltage spikes. So in our BOM (`BOM/task_4.md`), we picked a **2S LiPo battery ($7.4\text{ V}$ nominal, $8.4\text{ V}$ max)** for the TB6612FNG build (while the Appendix A L298N build handles up to $46\text{ V}$).
+
+2. **Output Current ($I_{\text{out}}$) & Internal Resistance ($R_{\text{DS(on)}}$):**
+   * **Datasheet Spec:** $1.2\text{ A}$ continuous current ($3.2\text{ A}$ peak) per channel, with $0.5\ \Omega$ internal MOSFET resistance.
+   * **How it affected our design:** Our N20 motors draw $0.21\text{ A}$ during normal driving and $1.1\text{ A}$ when stalled, which fits safely below the $1.2\text{ A}$ continuous limit. Because the resistance is only $0.5\ \Omega$, the chip loses less than $0.4\text{ V}$ as heat and needs no heavy heatsink.
+
+3. **Logic Input Voltage ($V_{CC}$ & $V_{IN(H)}$):**
+   * **Datasheet Spec:** Logic supply $V_{CC} = 2.7\text{ V}$ to $5.5\text{ V}$. A "HIGH" logic signal requires at least $V_{IN(H)} = 0.7 \times V_{CC}$.
+   * **How it affected our design:** We power $V_{CC}$ from the ESP32's $3.3\text{ V}$ pin. This makes the required HIGH threshold $0.7 \times 3.3\text{ V} = 2.31\text{ V}$. The ESP32 GPIO pins output $3.3\text{ V}$, so they switch the motor driver directly without needing a level shifter.
+
+---
+
+## 2. One Damaging Condition and How We Avoid It
+
+* **Damaging Condition:** **Back-EMF Voltage Spike Above $15.0\text{ V}$ or Sustained Motor Stall Above $1.2\text{ A}$.**
+  When spinning motors are suddenly reversed at a maze dead end, they act like generators and push a voltage spike back into the driver. If that spike passes $15.0\text{ V}$, or if a jammed wheel pulls stall current for too long, the driver burns out.
+* **How Our Design Avoids It:**
+  1. **Voltage Headroom:** Using an $8.4\text{ V}$ max 2S battery leaves a $6.6\text{ V}$ safety gap below $15.0\text{ V}$.
+  2. **Protection Capacitors:** We wire a $470\ \mu\text{F}$ electrolytic capacitor across the motor supply pins to soak up voltage spikes, plus $0.1\ \mu\text{F}$ ceramic capacitors across the motor terminals.
+  3. **Software Timeout Stop:** If the robot loses the line or stalls for more than $600\text{ ms}$, the code sets motor PWM to `0` so the motors cannot overheat.

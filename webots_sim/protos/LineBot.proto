@@ -1,0 +1,179 @@
+#VRML_SIM R2025a utf8
+# ============================================================================
+# FILE: protos/LineBot.proto
+# 3D LineBot for Webots R2025a (< 220x220x220 mm box):
+#   - 2 driven wheels ("left_motor", "right_motor")
+#   - 1 frictionless front caster ("caster_slip") so turns never drag
+#   - 5 downward IR cameras ("IR_S1".."IR_S5") at 48 mm ahead of axle
+#   - 1 Red LED ("end_led") that glows at the END box
+# ============================================================================
+
+PROTO LineBot [
+  field SFString   name            "MeshmerizeBot"
+  field SFString   controller      "line_bot_py"
+  field MFString   controllerArgs  []
+  field SFVec3f    translation     0.8900 -0.8500 0.0210
+  field SFRotation rotation        0 0 1 3.14159
+  field SFFloat    maxSpeed        22.0
+  field SFBool     supervisor      TRUE
+]
+{
+  Robot {
+    translation IS translation
+    rotation IS rotation
+    name IS name
+    controller IS controller
+    controllerArgs IS controllerArgs
+    supervisor IS supervisor
+    children [
+      Pose {
+        translation 0.020 0 0.015
+        children [
+          Shape {
+            appearance PBRAppearance {
+              baseColor 0.10 0.35 0.65
+              roughness 0.4
+              metalness 0.1
+            }
+            geometry Box {
+              size 0.140 0.110 0.030
+            }
+          }
+        ]
+      }
+      LED {
+        translation 0.020 0 0.035
+        name "end_led"
+        children [
+          Shape {
+            appearance PBRAppearance {
+              baseColor 0.95 0.1 0.1
+              roughness 0.3
+            }
+            geometry Sphere {
+              radius 0.008
+            }
+          }
+        ]
+        color [ 1 0 0 ]
+      }
+      HingeJoint {
+        jointParameters HingeJointParameters {
+          axis 0 1 0
+          anchor 0 0.065 0
+        }
+        device [
+          RotationalMotor {
+            name "left_motor"
+            maxVelocity IS maxSpeed
+            maxTorque 0.8
+          }
+        ]
+        endPoint Solid {
+          translation 0 0.065 0
+          rotation 1 0 0 1.5708
+          name "left_wheel"
+          contactMaterial "wheel_grip"
+          children [
+            Shape {
+              appearance PBRAppearance { baseColor 0.15 0.15 0.15 roughness 0.8 }
+              geometry Cylinder { height 0.018 radius 0.021 }
+            }
+          ]
+          boundingObject Cylinder { height 0.018 radius 0.021 }
+          physics Physics { density -1 mass 0.035 }
+        }
+      }
+      HingeJoint {
+        jointParameters HingeJointParameters {
+          axis 0 1 0
+          anchor 0 -0.065 0
+        }
+        device [
+          RotationalMotor {
+            name "right_motor"
+            maxVelocity IS maxSpeed
+            maxTorque 0.8
+          }
+        ]
+        endPoint Solid {
+          translation 0 -0.065 0
+          rotation 1 0 0 1.5708
+          name "right_wheel"
+          contactMaterial "wheel_grip"
+          children [
+            Shape {
+              appearance PBRAppearance { baseColor 0.15 0.15 0.15 roughness 0.8 }
+              geometry Cylinder { height 0.018 radius 0.021 }
+            }
+          ]
+          boundingObject Cylinder { height 0.018 radius 0.021 }
+          physics Physics { density -1 mass 0.035 }
+        }
+      }
+      Solid {
+        translation 0.060 0 -0.011
+        name "front_caster"
+        contactMaterial "caster_slip"
+        children [
+          Shape {
+            appearance PBRAppearance { baseColor 0.8 0.8 0.8 metalness 0.8 roughness 0.1 }
+            geometry Sphere { radius 0.010 }
+          }
+        ]
+        boundingObject Sphere { radius 0.010 }
+        physics Physics { density -1 mass 0.005 }
+      }
+      Camera {
+        translation 0.048 0.024 -0.005
+        rotation 0 1 0 1.5708
+        name "IR_S1"
+        fieldOfView 0.25
+        width 4
+        height 4
+        near 0.002
+      }
+      Camera {
+        translation 0.048 0.012 -0.005
+        rotation 0 1 0 1.5708
+        name "IR_S2"
+        fieldOfView 0.25
+        width 4
+        height 4
+        near 0.002
+      }
+      Camera {
+        translation 0.048 0.000 -0.005
+        rotation 0 1 0 1.5708
+        name "IR_S3"
+        fieldOfView 0.25
+        width 4
+        height 4
+        near 0.002
+      }
+      Camera {
+        translation 0.048 -0.012 -0.005
+        rotation 0 1 0 1.5708
+        name "IR_S4"
+        fieldOfView 0.25
+        width 4
+        height 4
+        near 0.002
+      }
+      Camera {
+        translation 0.048 -0.024 -0.005
+        rotation 0 1 0 1.5708
+        name "IR_S5"
+        fieldOfView 0.25
+        width 4
+        height 4
+        near 0.002
+      }
+    ]
+    boundingObject Pose {
+      translation 0.020 0 0.015
+      children [ Box { size 0.140 0.110 0.030 } ]
+    }
+    physics Physics { density -1 mass 0.220 }
+  }
+}

@@ -1,58 +1,76 @@
-# Task 3: PID Control for Line Following
+# Task 3: PID Control for Line Following (24 pts)
 
-## 1. Role of P, I and D
+## 1. Role of P, I, and D
 
-Think of steering a bike toward a line you want to ride on.
+Think of steering a bicycle to stay on a painted line on the road:
 
-- **P (proportional): "How far am I from the line right now?"**
-  The further off the line, the harder the steering corrects. On its own, P makes the robot overshoot and zig-zag across the line.
-- **D (derivative): "How fast am I moving toward or away from the line?"**
-  If the robot is rushing back toward the line, D eases off the steering so it doesn't shoot past. It acts as a brake that stops wobble.
-- **I (integral): "How long have I been off the line in total?"**
-  It adds up past errors. It helps with a constant pull, but on this robot each 90° corner makes the error build up, and that leftover build-up keeps steering the robot after the corner. So I is set to 0.
+* **P (Proportional) — "How far am I from the line right now?"**
+  The further the robot drifts from the center of the line, the harder it steers back. On its own, P makes the robot swing too hard, shoot past the center, and zig-zag back and forth.
+* **D (Derivative) — "How fast am I moving toward or away from the line?"**
+  If the robot is already swinging back toward the center quickly, D eases off the steering so it does not overshoot. It works like a shock absorber or brake that stops wobble.
+* **I (Integral) — "How long have I been off the line in total?"**
+  It adds up past errors over time. While useful for fixing a constant pull on straight roads, every $90^\circ$ corner in a maze causes a huge error buildup ("windup"). That leftover buildup keeps turning the robot after the corner is over and throws it off the track.
 
-## 2. Selected configuration: PD (KI = 0)
+---
 
-P gives a quick response to being off the line. D stops overshoot and wobble. Leaving out I means no leftover steering from corners. If one motor is naturally weaker, wheel encoders can compare wheel speeds and correct it, so I isn't needed for that.
+## 2. Selected Configuration: PD Control ($K_i = 0$)
 
-## 3. From sensor readings to motor commands
+We select **PD control** ($K_p > 0, K_i = 0, K_d > 0$).
+* **P** gives fast steering into turns.
+* **D** stops overshoot and side-to-side wobble on straight lines.
+* **Setting $K_i = 0$** prevents integral windup on sharp $90^\circ$ maze corners.
 
-```
-CALIBRATE:
-    for each sensor i: sensorMin[i], sensorMax[i] = lowest and highest raw reading from a sweep
+---
+
+## 3. From Sensor Readings to Motor Commands (Pseudocode)
+
+```text
+CALIBRATE (at startup):
+    for each sensor i in 0..4:
+        sensorMin[i], sensorMax[i] = lowest and highest raw reading during sweep
 
 NORMALIZE(i, raw):
-    value = (raw - sensorMin[i]) * 100 / (sensorMax[i] - sensorMin[i])
-    return clamp(value, 0, 100)              // 0 = background, 100 = line
+    value = (raw - sensorMin[i]) * 100.0 / (sensorMax[i] - sensorMin[i])
+    return clamp(value, 0, 100)              // 0 = floor, 100 = line
 
 POSITION(s[0..4]):                           // weights w = [-2, -1, 0, 1, 2]
-    total = sum(s)
-    if total < MIN_TOTAL: return NONE        // line lost
-    return sum(w[i] * s[i]) / total
+    total = s[0] + s[1] + s[2] + s[3] + s[4]
+    if total <= 0:
+        return NONE                          // all-zero case: line is lost
+    weighted = (-2*s[0]) + (-1*s[1]) + (0*s[2]) + (1*s[3]) + (2*s[4])
+    return weighted / total
 
 EVERY 10 ms:
-    s = [NORMALIZE(i, ADC(i)) for i in 0..4]
-    p = POSITION(s)
+    s = [NORMALIZE(i, analogRead(i)) for i in 0..4]
+    pos = POSITION(s)
 
-    if p != NONE:
-        if lostCount > 0: prevError = p      // no derivative jerk on reacquire
+    if pos != NONE:
+        if lostCount > 0:
+            prevError = pos                  // avoid D spike when finding line again
         lostCount = 0
-        error = p
-        corr = KP * error + KD * (error - prevError) / DT
+        error = pos
+        correction = (KP * error) + KD * ((error - prevError) / DT)
         prevError = error
-        lastCorr = corr
-        lastSide = sign(error)
-        L = BASE + corr                      // line on right (error > 0): left faster, turn right
-        R = BASE - corr
+        lastCorr = correction
+        if error >= 0: lastSide = +1
+        else:          lastSide = -1
+
+        // Sign rule: error > 0 means line is on the RIGHT.
+        // Speed up left wheel (+correction) and slow right wheel (-correction) to turn RIGHT.
+        L = BASE_SPEED + correction
+        R = BASE_SPEED - correction
 
     else:
         lostCount = lostCount + 1
-        if lostCount <= 5:                   // keep last correction (50 ms)
-            L = BASE + lastCorr;  R = BASE - lastCorr
-        else if lostCount <= 50:             // search toward last seen side (up to 500 ms)
-            if lastSide >= 0: L = +SEARCH;  R = -SEARCH
-            else:             L = -SEARCH;  R = +SEARCH
-        else:                                // give up and stop
+        if lostCount <= 5:                   // Stage 1: hold last turn briefly (50 ms)
+            L = BASE_SPEED + lastCorr
+            R = BASE_SPEED - lastCorr
+        else if lostCount <= 60:             // Stage 2: spin toward last seen side (up to 600 ms)
+            if lastSide >= 0:
+                L = +SEARCH_SPEED;  R = -SEARCH_SPEED
+            else:
+                L = -SEARCH_SPEED;  R = +SEARCH_SPEED
+        else:                                // Stage 3: timeout (after 600 ms) -> safe stop
             L = 0;  R = 0
 
     L = clamp(L, -255, 255)
@@ -60,16 +78,16 @@ EVERY 10 ms:
     WRITE_MOTORS(L, R)
 ```
 
-## 4. Oscillation and lost line
+---
 
-**Oscillation (zig-zagging across the line):** the steering is over-correcting, like a driver overreacting on a road.
+## 4. Handling Oscillation and a Lost Line
 
-- Shakes quickly from side to side: steering is too strong. **Lower KP.**
-- Wanders slowly or overshoots after curves: not enough braking. **Raise KD.**
-- Overshoots corners only at speed: too fast for the steering. **Lower BASE.**
+**Oscillation (zig-zagging across the line):**
+* **Shakes rapidly side-to-side:** Steering is too strong $\rightarrow$ **Lower $K_p$**.
+* **Overshoots slowly after curves:** Not enough damping brake $\rightarrow$ **Raise $K_d$**.
+* **Flies off corners at high speed:** Moving too fast for loop rate $\rightarrow$ **Lower `BASE_SPEED`**.
 
-**Lost line (all sensors see the floor):** the robot acts like a person who briefly loses sight of a path.
-
-1. **Keep going the same way (about 1sec).** Small tape gaps and bumps are common, so it doesn't panic.
-2. **Search by turning toward the side where it last saw the line (up to 2sec).** When it finds the line, it resets the D memory so it doesn't jerk.
-3. **Stop after 2s.** If the line still isn't found, it stops so it doesn't drive out of control.
+**Lost Line (all 5 sensors read 0):**
+1. **Hold last turn ($0\text{--}50\text{ ms}$):** Keeps going the same way for 5 loops to cross small tape gaps or bumps without panicking.
+2. **Spin toward last seen side ($50\text{--}600\text{ ms}$):** Pivots in place toward `lastSide` (`+1` right, `-1` left) until a sensor sees the line again. Resets `prevError` on re-entry so D does not jerk.
+3. **Safe stop ($> 600\text{ ms}$):** Stops both motors (`L = 0, R = 0`) so the robot never runs away off the table.
