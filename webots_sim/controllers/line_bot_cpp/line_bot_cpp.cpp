@@ -1,587 +1,796 @@
 // ============================================================================
-// FILE: src/webots_sim/controllers/line_bot_cpp/line_bot_cpp.cpp
-// WHAT THIS FILE IS FOR:
-//   Upgraded Webots R2025a C++ controller matching line_bot_py.py with all 5
-//   corner-turning fixes:
-//     1. Checks straightAhead ONLY AFTER the 127-tick (48 mm) commit rollout.
-//     2. Latches sawLeftBranch and sawRightBranch during rollout.
-//     3. Clamps gyro spikes and enforces a 65-deg / 150-deg minimum turn angle
-//        before center-sensor line snap.
-//     4. Pairs with zero-friction caster ContactProperties in meshmerize.wbt.
-//     5. Clean 6-step dead-end confirmation.
+// FILE: controllers/line_bot_cpp/line_bot_cpp.cpp
+// Webots R2025a/R2025b C++ Controller for LMS / Meshmerize Robot
+// - Uses 5 downward IR reflectance sensors (webots::DistanceSensor, type "infra-red")
+//   mapped to Appendix A ESP32 pins (GPIO 34, 35, 32, 33, 25).
+// - Uses L298N motor driver pin mapping from Appendix A (GPIO 14, 27, 26, 13, 12, 11).
+// - Implements DFS-based coordinate system mapping of junctions and segments,
+//   Dijkstra's shortest weighted path algorithm, and LSR... command generation.
+// - Shares 1-to-1 core implementation and logic with src/task_9/task_9.ino & task_9.cpp.
 // ============================================================================
 
 #include <cmath>
+#include <cstdarg>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
-#include <webots/Camera.hpp>
-#include <webots/Gyro.hpp>
+#include <webots/DistanceSensor.hpp>
 #include <webots/LED.hpp>
 #include <webots/Motor.hpp>
-#include <webots/PositionSensor.hpp>
 #include <webots/Supervisor.hpp>
-#include "../../../core/line_core.h"
 
-// ---- Simulation Timing, Speed & Sensor Fusion Constants ----
+// ---- Minimal Arduino-to-Webots Hardware Wrapper (Appendix A Pinout) ----
+#define HIGH 1
+#define LOW  0
+#define INPUT 0
+#define OUTPUT 1
 
-const int SIM_TIME_STEP_MS = 16;
-const float SIM_DT_SECONDS = 0.016f;
-const int CALIBRATION_STEPS = 20;
+static webots::Supervisor *wbBot = nullptr;
+static webots::Motor *wbLeftMotor = nullptr;
+static webots::Motor *wbRightMotor = nullptr;
+static webots::DistanceSensor *wbIrSensors[5] = {nullptr, nullptr, nullptr, nullptr, nullptr};
+static webots::LED *wbLed = nullptr;
+static int pinStates[40] = {0};
+static int pwmValues[40] = {0};
 
-const int MAX_MOTOR_PWM = 255;
-const int BASE_SPEED_PWM = 135;
-const int FAST_REPLAY_SPEED_PWM = 175;
-const int TURN_SPEED_PWM = 120;
-const float MAX_WHEEL_RAD_PER_SEC = 18.0f;
+struct SerialMock {
+    void begin(long) {}
+    void println(const char *s) {
+        std::printf("%s\n", s);
+        std::fflush(stdout);
+    }
+    void printf(const char *fmt, ...) {
+        va_list args;
+        va_start(args, fmt);
+        std::vprintf(fmt, args);
+        va_end(args);
+        std::fflush(stdout);
+    }
+} Serial;
 
-const float TICKS_PER_RADIAN = 55.704f;
-const float ENCODER_STRAIGHT_GAIN = 1.8f;
+unsigned long millis() {
+    return (unsigned long)(wbBot->getTime() * 1000.0 + 0.5);
+}
 
-const float GYRO_MIN_SNAP_90_DEG = 65.0f;
-const float GYRO_TARGET_90_DEG = 88.0f;
-const float GYRO_MIN_SNAP_180_DEG = 150.0f;
-const float GYRO_TARGET_180_DEG = 178.0f;
-const float MAX_VALID_GYRO_DPS = 360.0f;
+void pinMode(int, int) {}
 
-const float PID_KP_GAIN = 55.0f;
-const float PID_KI_GAIN = 0.0f;
-const float PID_KD_GAIN = 12.0f;
-const float PID_INTEGRAL_LIMIT = 5.0f;
+void syncWebotsActuators() {
+    // Convert L298N IN1/IN2/ENA (14,27,26) and IN3/IN4/ENB (13,12,11) to wheel angular velocities
+    int lDir = (pinStates[27] == HIGH && pinStates[26] == LOW) ? 1
+             : ((pinStates[27] == LOW && pinStates[26] == HIGH) ? -1 : 0);
+    int rDir = (pinStates[12] == HIGH && pinStates[11] == LOW) ? 1
+             : ((pinStates[12] == LOW && pinStates[11] == HIGH) ? -1 : 0);
+    double lVel = ((double)(lDir * pwmValues[14]) / 255.0) * 14.0;
+    double rVel = ((double)(rDir * pwmValues[13]) / 255.0) * 14.0;
+    wbLeftMotor->setVelocity(lVel);
+    wbRightMotor->setVelocity(rVel);
+    wbLed->set(pinStates[2]);
+}
 
-const float LINE_ON_THRESHOLD = 0.50f;
-const int DEBOUNCE_STEPS_REQUIRED = 2;
-const int END_BOX_SUSTAINED_STEPS = 14;
-const int JUNCTION_COMMIT_TICKS = 127; // 48 mm rollout to align axle and clear sensor bar past corner
-const int TURN_COOLDOWN_STEPS = 22;
-const int END_LED_BLINK_STEPS = 16;
-const int DEAD_END_CONFIRM_STEPS = 28;
+void digitalWrite(int pin, int val) {
+    if (pin >= 0 && pin < 40) pinStates[pin] = val;
+    syncWebotsActuators();
+}
 
-const double DRY_RUN_TIME_LIMIT_SEC = 180.0;
-const double ACTUAL_RUN_TIME_LIMIT_SEC = 150.0;
-const double CHECKPOINT_RADIUS_METRES = 0.12;
-double START_POS_X_METRES = -0.8000;
-double START_POS_Y_METRES = -0.9200;
-double START_POS_Z_METRES = 0.0210;
-double START_ROT_ANGLE_RAD = 1.5708;
+void analogWrite(int pin, int val) {
+    if (pin >= 0 && pin < 40) pwmValues[pin] = val;
+    syncWebotsActuators();
+}
 
-// ---- State Machine & Junction Constants ----
+int analogRead(int pin) {
+    int idx = 0;
+    if (pin == 34) idx = 0;
+    else if (pin == 35) idx = 1;
+    else if (pin == 32) idx = 2;
+    else if (pin == 33) idx = 3;
+    else if (pin == 25) idx = 4;
 
-const int STATE_CALIBRATE = 0;
-const int STATE_FOLLOW = 1;
-const int STATE_JUNCTION_DECIDE = 2;
-const int STATE_TURN = 3;
-const int STATE_LOST_LINE = 4;
-const int STATE_DRY_DONE = 5;
-const int STATE_REDUCE = 6;
-const int STATE_REPLAY = 7;
-const int STATE_FINISHED = 8;
+    if (!wbIrSensors[idx]) return 200;
+    double val = wbIrSensors[idx]->getValue();
+    if (std::isnan(val)) return 200;
+    int adc = (int)(val + 0.5);
+    if (adc < 0) adc = 0;
+    if (adc > 4095) adc = 4095;
+    return adc;
+}
 
-const int JUNC_NONE = 0;
-const int JUNC_LEFT_BRANCH = 1;
-const int JUNC_RIGHT_BRANCH = 2;
-const int JUNC_T_OR_CROSS = 3;
-const int JUNC_END_BOX = 4;
+void delay(unsigned long ms) {
+    unsigned long start = millis();
+    while (millis() - start < ms) {
+        if (wbBot->step(10) == -1) std::exit(0);
+    }
+}
 
-struct RefereeState {
-    double checkpointX[4];
-    double checkpointY[4];
-    bool checkpointVisited[4];
-    int checkpointsCoveredCount;
-    char officialShortestPath[64];
-    double dryRunStartTimeSec;
-    double dryRunElapsedSec;
-    double actualRunStartTimeSec;
-    double actualRunElapsedSec;
-    bool dryRunCompleted;
-    bool endLedLit;
-};
+void resetBotToStartForReplay() {
+    webots::Node *selfNode = wbBot->getSelf();
+    if (selfNode) {
+        const double sp[3] = {0.8900, -0.8500, 0.0210};
+        const double sr[4] = {0.0, 0.0, 1.0, 3.14159};
+        selfNode->getField("translation")->setSFVec3f(sp);
+        selfNode->getField("rotation")->setSFRotation(sr);
+        selfNode->resetPhysics();
+    }
+}
 
-webots::Supervisor *simRobot = nullptr;
-webots::Motor *leftWheelMotor = nullptr;
-webots::Motor *rightWheelMotor = nullptr;
-webots::PositionSensor *leftWheelEncoder = nullptr;
-webots::PositionSensor *rightWheelEncoder = nullptr;
-webots::Gyro *imuGyro = nullptr;
-webots::Camera *irCameras[5] = {nullptr, nullptr, nullptr, nullptr, nullptr};
-webots::LED *endZoneLed = nullptr;
+// ============================================================================
+// CORE TASK 9 IMPLEMENTATION (Shared with src/task_9/task_9.ino & task_9.cpp)
+// ============================================================================
 
-int currentState = STATE_CALIBRATE;
-bool isActualReplayRun = false;
-int sensorCalMin[5] = {200, 200, 200, 200, 200};
-int sensorCalMax[5] = {3800, 3800, 3800, 3800, 3800};
+// ---- 1. Appendix A Pin Definitions (Do Not Change) ----
 
-int calibrationStepCount = 0;
-int debounceStepCount = 0;
-int lastCandidateJunction = JUNC_NONE;
-int allFiveWhiteStepCount = 0;
-int commitStartTicks = 0;
-bool sawLeftBranchDuringCommit = false;
-bool sawRightBranchDuringCommit = false;
-int turnCooldownSteps = 0;
-int ledBlinkStepCounter = 0;
+// 5 IR sensors from left (IR_S1) to right (IR_S5)
+const int PIN_IR_S1 = 34; // leftmost sensor, weight -2
+const int PIN_IR_S2 = 35; // second sensor,   weight -1
+const int PIN_IR_S3 = 32; // center sensor,   weight  0
+const int PIN_IR_S4 = 33; // fourth sensor,   weight +1
+const int PIN_IR_S5 = 25; // rightmost sensor,weight +2
 
-float turnAccumulatedDeg = 0.0f;
-float turnMinSnapDeg = GYRO_MIN_SNAP_90_DEG;
-float turnTargetDeg = GYRO_TARGET_90_DEG;
-int turnLeftPwm = 0;
-int turnRightPwm = 0;
-int stateAfterTurn = STATE_FOLLOW;
-int lostLineStepCount = 0;
+const int SENSOR_PINS[5] = {PIN_IR_S1, PIN_IR_S2, PIN_IR_S3, PIN_IR_S4, PIN_IR_S5};
+const float SENSOR_WEIGHTS[5] = {-2.0f, -1.0f, 0.0f, 1.0f, 2.0f};
 
-int prevLeftTicks = 0;
-int prevRightTicks = 0;
-float currentLinePos = 0.0f;
-float previousError = 0.0f;
+// L298N motor driver pins from Appendix A
+const int PIN_ENA = 14; // left motor PWM speed (0 to 255)
+const int PIN_IN1 = 27; // left motor direction A
+const int PIN_IN2 = 26; // left motor direction B
+const int PIN_ENB = 13; // right motor PWM speed (0 to 255)
+const int PIN_IN3 = 12; // right motor direction A
+const int PIN_IN4 = 11; // right motor direction B
+
+// Red LED pin to glow at END box (GPIO 2 on ESP32)
+const int PIN_END_LED = 2;
+
+// ---- 2. Tuning Constants (PID, Speeds & Turn Timings) ----
+
+const float KP_GAIN = 85.0f;         // proportional gain
+const float KI_GAIN = 0.0f;          // integral gain (0 for PD control to prevent corner windup)
+const float KD_GAIN = 15.0f;         // derivative gain for damping straight-line oscillation
+const float INTEGRAL_MAX = 5.0f;     // integral windup guard
+
+const int BASE_SPEED = 150;          // normal forward cruising speed (0 to 255)
+const int TURN_SPEED = 130;          // on-axis turning speed
+const int MAX_PWM = 255;             // maximum PWM magnitude
+
+const unsigned long CALIB_MS = 300;  // startup sensor calibration window in simulation
+const unsigned long LOOP_MS = 10;    // 100 Hz control loop period (10 ms)
+const float DT_SEC = 0.010f;         // 10 ms loop step in seconds
+
+const float LINE_THRESH = 0.55f;     // normalized reading > 0.55 indicates white line detected
+const int HOLD_LOOPS = 5;            // hold last steering command for 5 loops (50 ms) over brief gaps
+const int DEAD_END_LOOPS = 12;       // 12 lost-line loops (120 ms) confirms a dead end
+const int STOP_TIMEOUT_LOOPS = 60;   // 60 lost-line loops (600 ms) triggers a safe stop
+
+const unsigned long ROLL_FORWARD_MS = 260;   // roll axle onto junction center (48 mm ahead of axle)
+const unsigned long BLIND_TURN_90_MS = 320;  // initial blind spin to clear straight branch on 90-deg turn
+const unsigned long BLIND_TURN_180_MS = 650; // initial blind spin on 180-deg dead-end turn
+const unsigned long REPLAY_WAIT_MS = 1000;   // pause at END box before starting Actual Run replay
+
+// ---- 3. Global Variables for Calibration, PID & DFS/Dijkstra Maze Memory ----
+
+int sensorMin[5] = {4095, 4095, 4095, 4095, 4095};
+int sensorMax[5] = {0, 0, 0, 0, 0};
+
+float currentPos = 0.0f;
+float prevError = 0.0f;
 float integralSum = 0.0f;
 float lastCorrection = 0.0f;
 
-char recordedPath[128] = "";
-int recordedPathLength = 0;
-int replayTurnIndex = 0;
-RefereeState referee;
+int lostLineCount = 0;
+int junctionCooldown = 0;
+unsigned long lastLoopMs = 0;
 
-// ---- Helpers ----
+// Coordinate Graph for DFS Exploration & Dijkstra Shortest Weighted Path
+const int MAX_GRAPH_NODES = 64;
+const int INF_WEIGHT = 1000000;
+const int COORD_SNAP_TOL = 25;
 
-int mapCameraBrightnessToAdc(int greyBrightness) {
-    int clampedGrey = clampIntValue(greyBrightness, 0, 255);
-    return (clampedGrey * 4095) / 255;
+// Cardinal directions in robot coordinate frame: 0=North(+Y), 1=East(+X), 2=South(-Y), 3=West(-X)
+const int DIR_DX[4] = {0, 1, 0, -1};
+const int DIR_DY[4] = {1, 0, -1, 0};
+
+int nodeX[MAX_GRAPH_NODES];          // X coordinate of each junction/node
+int nodeY[MAX_GRAPH_NODES];          // Y coordinate of each junction/node
+int adjNode[MAX_GRAPH_NODES][4];     // neighbor node index in cardinal direction d (0..3), or -1
+int adjWeight[MAX_GRAPH_NODES][4];   // edge weight (measured travel loops) in direction d
+int numGraphNodes = 1;               // node 0 is START at (0, 0)
+
+int dfsStack[MAX_GRAPH_NODES];       // DFS parent stack for exact backtracking
+int dfsStackTop = 0;
+int currGraphNode = 0;
+int currHeadingDir = 0;              // 0=N, 1=E, 2=S, 3=W
+bool isDfsBacktracking = false;
+int segmentLoops = 0;                // forward control loops elapsed along current segment
+
+char pathTurns[128];                 // LSR... command string for shortest path traversal
+int pathLen = 0;
+
+bool isReplayMode = false;           // false = Dry Run (DFS mapping), true = Actual Run (Dijkstra LSR replay)
+int replayIndex = 0;
+bool allRunsFinished = false;
+
+// ---- 4. Core Math Functions (Centroid, Clamping, Normalization) ----
+
+int clampInt(int val, int minVal, int maxVal) {
+    if (val < minVal) return minVal;
+    if (val > maxVal) return maxVal;
+    return val;
 }
 
-void readAllSimulatedSensors(int rawOut[5], float calibratedOut[5]) {
-    for (int i = 0; i < CORE_SENSOR_COUNT; i++) {
-        const unsigned char *img = irCameras[i]->getImage();
-        int w = irCameras[i]->getWidth();
-        int h = irCameras[i]->getHeight();
-        int sumGrey = 0;
-        for (int x = 0; x < w; x++) {
-            for (int y = 0; y < h; y++) {
-                int r = webots::Camera::imageGetRed(img, w, x, y);
-                int g = webots::Camera::imageGetGreen(img, w, x, y);
-                int b = webots::Camera::imageGetBlue(img, w, x, y);
-                sumGrey = sumGrey + ((r + g + b) / 3);
-            }
+void clampMotorCommands(int &left, int &right, int maxMag) {
+    if (maxMag < 0) maxMag = -maxMag;
+    left = clampInt(left, -maxMag, +maxMag);
+    right = clampInt(right, -maxMag, +maxMag);
+}
+
+float normalizeSensor(int raw, int minVal, int maxVal) {
+    int span = maxVal - minVal;
+    if (span <= 0) return 0.0f;
+    float norm = (float)(raw - minVal) / (float)span;
+    if (norm < 0.0f) return 0.0f;
+    if (norm > 1.0f) return 1.0f;
+    return norm;
+}
+
+bool computeLinePosition(const float s[5], float &position) {
+    float weightedSum = 0.0f;
+    float totalSum = 0.0f;
+    bool anyOnLine = false;
+
+    for (int i = 0; i < 5; i++) {
+        if (s[i] > LINE_THRESH) {
+            anyOnLine = true;
+            float val = s[i] - LINE_THRESH;
+            weightedSum += SENSOR_WEIGHTS[i] * val;
+            totalSum += val;
         }
-        rawOut[i] = mapCameraBrightnessToAdc(sumGrey / (w * h));
-        calibratedOut[i] = normalizeSensorReading(rawOut[i], sensorCalMin[i], sensorCalMax[i]);
     }
-}
 
-void readWheelEncoderTicks(int &leftTicksOut, int &rightTicksOut) {
-    double lRad = leftWheelEncoder->getValue();
-    double rRad = rightWheelEncoder->getValue();
-    leftTicksOut = std::isnan(lRad) ? 0 : (int)(lRad * TICKS_PER_RADIAN);
-    rightTicksOut = std::isnan(rRad) ? 0 : (int)(rRad * TICKS_PER_RADIAN);
-}
-
-float readSimGyroYawRateDegPerSec() {
-    const double *vel = imuGyro->getValues();
-    if (vel == nullptr || std::isnan(vel[2])) {
-        return 0.0f;
+    if (!anyOnLine || totalSum <= 0.0001f) {
+        return false;
     }
-    float rawDps = (float)(vel[2] * (180.0 / 3.141592653589793));
-    return clampFloatValue(rawDps, -MAX_VALID_GYRO_DPS, +MAX_VALID_GYRO_DPS);
+
+    position = weightedSum / totalSum;
+    return true;
 }
 
-void setRobotWheelCommands(int leftPwm, int rightPwm) {
-    clampMotorCommands(leftPwm, rightPwm, MAX_MOTOR_PWM);
-    leftWheelMotor->setVelocity(((double)leftPwm / MAX_MOTOR_PWM) * MAX_WHEEL_RAD_PER_SEC);
-    rightWheelMotor->setVelocity(((double)rightPwm / MAX_MOTOR_PWM) * MAX_WHEEL_RAD_PER_SEC);
+// ---- 5. DFS Coordinate System Mapping, Dijkstra Shortest Path & LSR Generator ----
+
+int turnToAngle(char c) {
+    if (c == 'L') return -90;
+    if (c == 'S') return 0;
+    if (c == 'R') return 90;
+    return 180;
 }
 
-void startGyroTurnManeuver(char turnChar, int nextState) {
-    stateAfterTurn = nextState;
-    turnAccumulatedDeg = 0.0f;
-    if (turnChar == 'B') {
-        turnMinSnapDeg = GYRO_MIN_SNAP_180_DEG;
-        turnTargetDeg = GYRO_TARGET_180_DEG;
+char angleToTurn(int deg) {
+    int w = deg % 360;
+    if (w < 0) w += 360;
+    if (w == 0) return 'S';
+    if (w == 90) return 'R';
+    if (w == 180) return 'B';
+    return 'L';
+}
+
+int turnToDeltaDir(char c) {
+    if (c == 'L') return 3; // -90 deg mod 4
+    if (c == 'S') return 0; //   0 deg mod 4
+    if (c == 'R') return 1; // +90 deg mod 4
+    return 2;               // 180 deg mod 4
+}
+
+char deltaDirToTurn(int inDir, int outDir) {
+    int d = (outDir - inDir + 4) % 4;
+    if (d == 0) return 'S';
+    if (d == 1) return 'R';
+    if (d == 2) return 'B';
+    return 'L';
+}
+
+void initMazeGraph() {
+    numGraphNodes = 1;
+    nodeX[0] = 0;
+    nodeY[0] = 0;
+    for (int i = 0; i < MAX_GRAPH_NODES; i++) {
+        for (int d = 0; d < 4; d++) {
+            adjNode[i][d] = -1;
+            adjWeight[i][d] = 0;
+        }
+    }
+    dfsStackTop = 0;
+    currGraphNode = 0;
+    currHeadingDir = 0;
+    isDfsBacktracking = false;
+    segmentLoops = 0;
+    pathLen = 0;
+    pathTurns[0] = '\0';
+}
+
+int findNodeAtCoord(int x, int y, int tol) {
+    if (tol < 0) return -1;
+    for (int i = 0; i < numGraphNodes; i++) {
+        if (std::abs(nodeX[i] - x) <= tol && std::abs(nodeY[i] - y) <= tol) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+int arriveAtGraphNode(int segWeight, int coordTol) {
+    if (segWeight < 1) segWeight = 1;
+    int oppDir = (currHeadingDir + 2) % 4;
+    int arrived = currGraphNode;
+
+    if (isDfsBacktracking) {
+        if (dfsStackTop > 0) {
+            arrived = dfsStack[--dfsStackTop];
+        }
     } else {
-        turnMinSnapDeg = GYRO_MIN_SNAP_90_DEG;
-        turnTargetDeg = GYRO_TARGET_90_DEG;
-    }
-    turnLeftPwm = (turnChar == 'L') ? -TURN_SPEED_PWM : +TURN_SPEED_PWM;
-    turnRightPwm = (turnChar == 'L') ? +TURN_SPEED_PWM : -TURN_SPEED_PWM;
-    currentState = STATE_TURN;
-}
-
-void initRefereeData() {
-    const double fallbackX[4] = {0.8000, 0.0000, 0.0000, -0.4000};
-    const double fallbackY[4] = {0.4000, -0.8000, 0.4000, 0.0000};
-    for (int i = 0; i < 4; i++) {
-        referee.checkpointX[i] = fallbackX[i];
-        referee.checkpointY[i] = fallbackY[i];
-        referee.checkpointVisited[i] = false;
-    }
-    referee.checkpointsCoveredCount = 0;
-    std::strcpy(referee.officialShortestPath, "RRLLRRLL");
-
-    FILE *fp = std::fopen("../../worlds/shortest_path.txt", "r");
-    if (fp != nullptr) {
-        char line[128];
-        while (std::fgets(line, sizeof(line), fp) != nullptr) {
-            if (std::strncmp(line, "SHORTEST_PATH=", 14) == 0) {
-                std::sscanf(line + 14, "%63s", referee.officialShortestPath);
-            } else if (std::strncmp(line, "START_POSE=", 11) == 0) {
-                std::sscanf(line + 11, "%lf,%lf,%lf,%lf",
-                            &START_POS_X_METRES, &START_POS_Y_METRES,
-                            &START_POS_Z_METRES, &START_ROT_ANGLE_RAD);
-            } else {
-                int idx = 0;
-                double cx = 0.0, cy = 0.0;
-                if (std::sscanf(line, "CHECKPOINT_%d=%lf,%lf", &idx, &cx, &cy) == 3 && idx >= 1 && idx <= 4) {
-                    referee.checkpointX[idx - 1] = cx;
-                    referee.checkpointY[idx - 1] = cy;
-                }
+        if (adjNode[currGraphNode][currHeadingDir] != -1) {
+            arrived = adjNode[currGraphNode][currHeadingDir];
+        } else {
+            int nx = nodeX[currGraphNode] + DIR_DX[currHeadingDir] * segWeight;
+            int ny = nodeY[currGraphNode] + DIR_DY[currHeadingDir] * segWeight;
+            int existing = findNodeAtCoord(nx, ny, coordTol);
+            if (existing != -1 && existing != currGraphNode) {
+                arrived = existing;
+            } else if (numGraphNodes < MAX_GRAPH_NODES) {
+                arrived = numGraphNodes++;
+                nodeX[arrived] = nx;
+                nodeY[arrived] = ny;
             }
-        }
-        std::fclose(fp);
-    }
-    referee.dryRunStartTimeSec = 0.0;
-    referee.dryRunElapsedSec = 0.0;
-    referee.actualRunStartTimeSec = 0.0;
-    referee.actualRunElapsedSec = 0.0;
-    referee.dryRunCompleted = false;
-    referee.endLedLit = false;
-}
-
-void updateRefereeCheckpoints() {
-    webots::Node *selfNode = simRobot->getSelf();
-    if (selfNode == nullptr) return;
-    const double *pos = selfNode->getPosition();
-    for (int i = 0; i < 4; i++) {
-        if (!referee.checkpointVisited[i]) {
-            double dist = std::hypot(pos[0] - referee.checkpointX[i], pos[1] - referee.checkpointY[i]);
-            if (dist <= CHECKPOINT_RADIUS_METRES) {
-                referee.checkpointVisited[i] = true;
-                referee.checkpointsCoveredCount = referee.checkpointsCoveredCount + 1;
-                std::printf("[REFEREE] Checkpoint %d reached! Total visited: %d/4\n",
-                            i + 1, referee.checkpointsCoveredCount);
+            if (adjNode[currGraphNode][currHeadingDir] == -1 ||
+                segWeight < adjWeight[currGraphNode][currHeadingDir]) {
+                adjNode[currGraphNode][currHeadingDir] = arrived;
+                adjWeight[currGraphNode][currHeadingDir] = segWeight;
+                adjNode[arrived][oppDir] = currGraphNode;
+                adjWeight[arrived][oppDir] = segWeight;
             }
         }
     }
+
+    currGraphNode = arrived;
+    return arrived;
 }
 
-void printFinalCompetitionScoreboard() {
-    double dryOverrun = (referee.dryRunElapsedSec > DRY_RUN_TIME_LIMIT_SEC)
-                        ? (referee.dryRunElapsedSec - DRY_RUN_TIME_LIMIT_SEC) : 0.0;
-    double adjActualLimit = ACTUAL_RUN_TIME_LIMIT_SEC - dryOverrun;
-    int scoreA = 25 * referee.checkpointsCoveredCount;
-    int scoreB = referee.dryRunCompleted ? 30 : 0;
-    double scoreC = std::fmax(0.0, DRY_RUN_TIME_LIMIT_SEC - referee.dryRunElapsedSec);
-    bool isShortest = (std::strcmp(recordedPath, referee.officialShortestPath) == 0);
-    int scoreS = isShortest ? 30 : 0;
-    double scoreT = (isShortest && referee.actualRunElapsedSec <= adjActualLimit)
-                    ? (adjActualLimit - referee.actualRunElapsedSec) : 0.0;
-    int scoreL = referee.endLedLit ? 5 : 0;
-    int scoreP = 0;
-    double total = (double)(scoreA + scoreB + scoreS + scoreL - scoreP) + scoreC + scoreT;
-
-    std::printf("\n================ OFFICIAL MESHMERIZE SCOREBOARD ================\n");
-    std::printf("  A (Checkpoints: %d x 25)        = %d\n", referee.checkpointsCoveredCount, scoreA);
-    std::printf("  B (Dry Run Completed)          = %d\n", scoreB);
-    std::printf("  C (180.0 - %.2f s Dry Run)    = %.2f\n", referee.dryRunElapsedSec, scoreC);
-    std::printf("  S (Shortest Path '%s')  = %d\n", recordedPath, scoreS);
-    std::printf("  T (%.1f - %.2f s Actual Run) = %.2f\n", adjActualLimit, referee.actualRunElapsedSec, scoreT);
-    std::printf("  L (Red END LED Glow + Blink)   = %d\n", scoreL);
-    std::printf("  P (Penalties)                  = %d\n", scoreP);
-    std::printf("----------------------------------------------------------------\n");
-    std::printf("  TOTAL SCORE                    = %.2f\n", total);
-    std::printf("================================================================\n");
-}
-
-int main() {
-    simRobot = new webots::Supervisor();
-    initRefereeData();
-
-    leftWheelMotor = simRobot->getMotor("left_motor");
-    rightWheelMotor = simRobot->getMotor("right_motor");
-    leftWheelMotor->setPosition(INFINITY);
-    rightWheelMotor->setPosition(INFINITY);
-    leftWheelMotor->setVelocity(0.0);
-    rightWheelMotor->setVelocity(0.0);
-
-    leftWheelEncoder = simRobot->getPositionSensor("left_encoder");
-    rightWheelEncoder = simRobot->getPositionSensor("right_encoder");
-    leftWheelEncoder->enable(SIM_TIME_STEP_MS);
-    rightWheelEncoder->enable(SIM_TIME_STEP_MS);
-
-    imuGyro = simRobot->getGyro("imu_gyro");
-    imuGyro->enable(SIM_TIME_STEP_MS);
-
-    const char *camNames[5] = {"IR_S1", "IR_S2", "IR_S3", "IR_S4", "IR_S5"};
-    for (int i = 0; i < CORE_SENSOR_COUNT; i++) {
-        irCameras[i] = simRobot->getCamera(camNames[i]);
-        irCameras[i]->enable(SIM_TIME_STEP_MS);
-    }
-    endZoneLed = simRobot->getLED("end_led");
-    endZoneLed->set(0);
-
-    while (simRobot->step(SIM_TIME_STEP_MS) != -1) {
-        int rawSensors[5];
-        float calibratedSensors[5];
-        readAllSimulatedSensors(rawSensors, calibratedSensors);
-
-        int currLeftTicks = 0, currRightTicks = 0;
-        readWheelEncoderTicks(currLeftTicks, currRightTicks);
-        int dLeftTicks = currLeftTicks - prevLeftTicks;
-        int dRightTicks = currRightTicks - prevRightTicks;
-        prevLeftTicks = currLeftTicks;
-        prevRightTicks = currRightTicks;
-        int avgWheelTicks = (currLeftTicks + currRightTicks) / 2;
-
-        float yawRateDps = readSimGyroYawRateDegPerSec();
-
-        if (turnCooldownSteps > 0) {
-            turnCooldownSteps--;
-        }
-
-        if (!isActualReplayRun && currentState != STATE_CALIBRATE) {
-            updateRefereeCheckpoints();
-        }
-
-        if (currentState == STATE_CALIBRATE) {
-            setRobotWheelCommands(0, 0);
-            calibrationStepCount++;
-            if (calibrationStepCount >= CALIBRATION_STEPS) {
-                referee.dryRunStartTimeSec = simRobot->getTime();
-                std::printf("[CALIBRATE] Done at t=%.2f s. Starting DRY RUN!\n", referee.dryRunStartTimeSec);
-                currentState = STATE_FOLLOW;
-            }
-        } else if (currentState == STATE_FOLLOW || currentState == STATE_REPLAY) {
-            bool allFiveOn = true;
-            for (int i = 0; i < CORE_SENSOR_COUNT; i++) {
-                if (calibratedSensors[i] < LINE_ON_THRESHOLD) allFiveOn = false;
-            }
-            if (allFiveOn) {
-                allFiveWhiteStepCount++;
-                if (allFiveWhiteStepCount >= END_BOX_SUSTAINED_STEPS) {
-                    setRobotWheelCommands(0, 0);
-                    endZoneLed->set(1);
-                    referee.endLedLit = true;
-                    ledBlinkStepCounter = 0;
-                    currentState = isActualReplayRun ? STATE_FINISHED : STATE_DRY_DONE;
-                    continue;
+void reduceDeadEndsInPath(char path[], int &len) {
+    bool changed = true;
+    while (changed) {
+        changed = false;
+        for (int i = 1; i < len - 1; i++) {
+            if (path[i] == 'B') {
+                int sumDeg = turnToAngle(path[i - 1]) + 180 + turnToAngle(path[i + 1]);
+                path[i - 1] = angleToTurn(sumDeg);
+                for (int j = i; j < len - 2; j++) {
+                    path[j] = path[j + 2];
                 }
-            } else {
-                allFiveWhiteStepCount = 0;
-            }
-
-            bool lineValid = computeLinePosition(calibratedSensors, currentLinePos);
-            if (!lineValid) {
-                lostLineStepCount = 0;
-                currentState = STATE_LOST_LINE;
-                continue;
-            }
-
-            if (turnCooldownSteps <= 0) {
-                bool fL = (calibratedSensors[0] >= LINE_ON_THRESHOLD);
-                bool fR = (calibratedSensors[4] >= LINE_ON_THRESHOLD);
-                bool cOn = (calibratedSensors[1] >= LINE_ON_THRESHOLD ||
-                            calibratedSensors[2] >= LINE_ON_THRESHOLD ||
-                            calibratedSensors[3] >= LINE_ON_THRESHOLD);
-
-                int instJunc = JUNC_NONE;
-                if (fL && fR && cOn) {
-                    // Disambiguate right or left 90-deg corner from a true T/Cross junction
-                    if (calibratedSensors[4] > calibratedSensors[0] + 0.15f || currentLinePos > 0.20f) {
-                        instJunc = JUNC_RIGHT_BRANCH;
-                    } else if (calibratedSensors[0] > calibratedSensors[4] + 0.15f || currentLinePos < -0.20f) {
-                        instJunc = JUNC_LEFT_BRANCH;
-                    } else {
-                        instJunc = JUNC_T_OR_CROSS;
-                    }
-                } else if (fL && cOn) {
-                    instJunc = JUNC_LEFT_BRANCH;
-                } else if (fR && cOn) {
-                    instJunc = JUNC_RIGHT_BRANCH;
-                }
-
-                if (instJunc != JUNC_NONE) {
-                    debounceStepCount = (instJunc == lastCandidateJunction) ? (debounceStepCount + 1) : 1;
-                    lastCandidateJunction = instJunc;
-                    if (debounceStepCount >= DEBOUNCE_STEPS_REQUIRED) {
-                        debounceStepCount = 0;
-                        commitStartTicks = avgWheelTicks;
-                        sawLeftBranchDuringCommit = (instJunc == JUNC_LEFT_BRANCH || instJunc == JUNC_T_OR_CROSS);
-                        sawRightBranchDuringCommit = (instJunc == JUNC_RIGHT_BRANCH || instJunc == JUNC_T_OR_CROSS);
-                        currentState = STATE_JUNCTION_DECIDE;
-                        continue;
-                    }
-                } else {
-                    debounceStepCount = 0;
-                    lastCandidateJunction = JUNC_NONE;
-                }
-            } else {
-                debounceStepCount = 0;
-                lastCandidateJunction = JUNC_NONE;
-            }
-
-            lastCorrection = computePidCorrection(
-                currentLinePos, previousError, integralSum,
-                PID_KP_GAIN, PID_KI_GAIN, PID_KD_GAIN, PID_INTEGRAL_LIMIT, SIM_DT_SECONDS
-            );
-            float encTrim = (std::fabs(currentLinePos) < 0.25f)
-                            ? computeEncoderHeadingTrim(dLeftTicks, dRightTicks, ENCODER_STRAIGHT_GAIN) : 0.0f;
-
-            int targetBase = BASE_SPEED_PWM;
-            if (isActualReplayRun && replayTurnIndex < recordedPathLength && recordedPath[replayTurnIndex] == 'S') {
-                targetBase = FAST_REPLAY_SPEED_PWM;
-            }
-            int steer = (int)(lastCorrection - encTrim);
-            setRobotWheelCommands(targetBase + steer, targetBase - steer);
-
-        } else if (currentState == STATE_JUNCTION_DECIDE) {
-            bool allFiveOn = true;
-            for (int i = 0; i < CORE_SENSOR_COUNT; i++) {
-                if (calibratedSensors[i] < LINE_ON_THRESHOLD) allFiveOn = false;
-            }
-            if (allFiveOn) {
-                allFiveWhiteStepCount++;
-                if (allFiveWhiteStepCount >= END_BOX_SUSTAINED_STEPS) {
-                    setRobotWheelCommands(0, 0);
-                    endZoneLed->set(1);
-                    referee.endLedLit = true;
-                    ledBlinkStepCounter = 0;
-                    currentState = isActualReplayRun ? STATE_FINISHED : STATE_DRY_DONE;
-                    continue;
-                }
-            } else {
-                allFiveWhiteStepCount = 0;
-            }
-
-            int ticksMoved = avgWheelTicks - commitStartTicks;
-            if (ticksMoved < JUNCTION_COMMIT_TICKS) {
-                setRobotWheelCommands(BASE_SPEED_PWM, BASE_SPEED_PWM);
-                continue;
-            }
-
-            // Sensor bar is now 48 mm past the intersection center -> check if straight path exists!
-            bool straightAhead = (calibratedSensors[1] >= LINE_ON_THRESHOLD ||
-                                  calibratedSensors[2] >= LINE_ON_THRESHOLD ||
-                                  calibratedSensors[3] >= LINE_ON_THRESHOLD);
-            int returnState = isActualReplayRun ? STATE_REPLAY : STATE_FOLLOW;
-
-            if (isActualReplayRun) {
-                char nextTurn = (replayTurnIndex < recordedPathLength) ? recordedPath[replayTurnIndex++] : 'S';
-                std::printf("[ACTUAL RUN] Replaying turn #%d: '%c'\n", replayTurnIndex, nextTurn);
-                if (nextTurn == 'S') {
-                    turnCooldownSteps = TURN_COOLDOWN_STEPS;
-                    sawLeftBranchDuringCommit = false;
-                    sawRightBranchDuringCommit = false;
-                    lastCandidateJunction = JUNC_NONE;
-                    debounceStepCount = 0;
-                    currentState = returnState;
-                } else {
-                    startGyroTurnManeuver(nextTurn, returnState);
-                }
-            } else {
-                char chosen = 'B';
-                if (sawLeftBranchDuringCommit) chosen = 'L';
-                else if (straightAhead) chosen = 'S';
-                else if (sawRightBranchDuringCommit) chosen = 'R';
-
-                if (recordedPathLength < 126) {
-                    recordedPath[recordedPathLength++] = chosen;
-                    recordedPath[recordedPathLength] = '\0';
-                }
-                std::printf("[DRY RUN] Recorded turn '%c' -> path: %s\n", chosen, recordedPath);
-                if (chosen == 'S') {
-                    turnCooldownSteps = TURN_COOLDOWN_STEPS;
-                    sawLeftBranchDuringCommit = false;
-                    sawRightBranchDuringCommit = false;
-                    lastCandidateJunction = JUNC_NONE;
-                    debounceStepCount = 0;
-                    currentState = returnState;
-                } else {
-                    startGyroTurnManeuver(chosen, returnState);
-                }
-            }
-
-        } else if (currentState == STATE_TURN) {
-            setRobotWheelCommands(turnLeftPwm, turnRightPwm);
-            turnAccumulatedDeg = integrateGyroTurnAngleDeg(turnAccumulatedDeg, yawRateDps, SIM_DT_SECONDS);
-            float turnedMag = std::fabs(turnAccumulatedDeg);
-
-            bool pastBlindZone = (turnedMag >= turnMinSnapDeg);
-            bool centerLineLocked = (calibratedSensors[1] >= LINE_ON_THRESHOLD ||
-                                     calibratedSensors[2] >= LINE_ON_THRESHOLD ||
-                                     calibratedSensors[3] >= LINE_ON_THRESHOLD);
-            bool reachedFullAngle = (turnedMag >= turnTargetDeg);
-
-            if ((pastBlindZone && centerLineLocked) || reachedFullAngle) {
-                setRobotWheelCommands(0, 0);
-                previousError = 0.0f;
-                integralSum = 0.0f;
-                turnCooldownSteps = TURN_COOLDOWN_STEPS;
-                sawLeftBranchDuringCommit = false;
-                sawRightBranchDuringCommit = false;
-                lastCandidateJunction = JUNC_NONE;
-                debounceStepCount = 0;
-                currentState = stateAfterTurn;
-            }
-
-        } else if (currentState == STATE_LOST_LINE) {
-            if (computeLinePosition(calibratedSensors, currentLinePos)) {
-                currentState = isActualReplayRun ? STATE_REPLAY : STATE_FOLLOW;
-                continue;
-            }
-            lostLineStepCount++;
-            if (lostLineStepCount <= DEAD_END_CONFIRM_STEPS) {
-                setRobotWheelCommands(BASE_SPEED_PWM / 2, BASE_SPEED_PWM / 2);
-            } else {
-                if (!isActualReplayRun && recordedPathLength < 126) {
-                    recordedPath[recordedPathLength++] = 'B';
-                    recordedPath[recordedPathLength] = '\0';
-                    std::printf("[DRY RUN] Dead-End reached! Recorded turn 'B' -> path: %s\n", recordedPath);
-                }
-                startGyroTurnManeuver('B', isActualReplayRun ? STATE_REPLAY : STATE_FOLLOW);
-            }
-
-        } else if (currentState == STATE_DRY_DONE) {
-            if (ledBlinkStepCounter == 0) {
-                referee.dryRunCompleted = true;
-                referee.dryRunElapsedSec = simRobot->getTime() - referee.dryRunStartTimeSec;
-                std::printf("\n[DRY_DONE] Reached END box in %.2f s! Blinking Red LED...\n", referee.dryRunElapsedSec);
-            }
-            endZoneLed->set((ledBlinkStepCounter % 4 < 2) ? 1 : 0);
-            ledBlinkStepCounter++;
-            if (ledBlinkStepCounter >= END_LED_BLINK_STEPS) {
-                endZoneLed->set(1);
-                currentState = STATE_REDUCE;
-            }
-
-        } else if (currentState == STATE_REDUCE) {
-            std::printf("[REDUCE] Raw Turn String:     %s\n", recordedPath);
-            reduceFullTurnPath(recordedPath, recordedPathLength);
-            std::printf("[REDUCE] Reduced Turn String: %s\n\n", recordedPath);
-            setRobotWheelCommands(0, 0);
-            endZoneLed->set(0);
-            webots::Node *selfNode = simRobot->getSelf();
-            const double startPos[3] = {START_POS_X_METRES, START_POS_Y_METRES, START_POS_Z_METRES};
-            const double startRot[4] = {0.0, 0.0, 1.0, START_ROT_ANGLE_RAD};
-            selfNode->getField("translation")->setSFVec3f(startPos);
-            selfNode->getField("rotation")->setSFRotation(startRot);
-            selfNode->resetPhysics();
-            isActualReplayRun = true;
-            replayTurnIndex = 0;
-            turnCooldownSteps = TURN_COOLDOWN_STEPS;
-            referee.actualRunStartTimeSec = simRobot->getTime();
-            currentState = STATE_REPLAY;
-
-        } else if (currentState == STATE_FINISHED) {
-            if (ledBlinkStepCounter == 0) {
-                referee.actualRunElapsedSec = simRobot->getTime() - referee.actualRunStartTimeSec;
-                std::printf("[FINISHED] Actual Run finished in %.2f s! Blinking Red LED...\n", referee.actualRunElapsedSec);
-                printFinalCompetitionScoreboard();
-            }
-            endZoneLed->set((ledBlinkStepCounter % 4 < 2) ? 1 : 0);
-            ledBlinkStepCounter++;
-            if (ledBlinkStepCounter >= END_LED_BLINK_STEPS) {
-                endZoneLed->set(1);
-                setRobotWheelCommands(0, 0);
+                len -= 2;
+                path[len] = '\0';
+                changed = true;
                 break;
             }
         }
     }
-    delete simRobot;
+}
+
+void departFromGraphNode(char chosenTurn) {
+    int outDir = (currHeadingDir + turnToDeltaDir(chosenTurn)) % 4;
+    if (chosenTurn == 'B' ||
+        (dfsStackTop > 0 && adjNode[currGraphNode][outDir] == dfsStack[dfsStackTop - 1])) {
+        isDfsBacktracking = true;
+    } else {
+        if (dfsStackTop < MAX_GRAPH_NODES) {
+            dfsStack[dfsStackTop++] = currGraphNode;
+        }
+        isDfsBacktracking = false;
+    }
+    currHeadingDir = outDir;
+
+    if (pathLen < 126) {
+        pathTurns[pathLen++] = chosenTurn;
+        pathTurns[pathLen] = '\0';
+    }
+    reduceDeadEndsInPath(pathTurns, pathLen);
+}
+
+char chooseDfsTurnAndRecord(int segWeight, bool leftBranch, bool straightExists, bool rightBranch, int coordTol = COORD_SNAP_TOL) {
+    arriveAtGraphNode(segWeight, coordTol);
+
+    char chosenTurn = 'B';
+    if (leftBranch || straightExists || rightBranch) {
+        int dirL = (currHeadingDir + 3) % 4;
+        int dirS = currHeadingDir;
+        int dirR = (currHeadingDir + 1) % 4;
+
+        // DFS Priority 1: Explore first unvisited branch in L -> S -> R order
+        if (leftBranch && adjNode[currGraphNode][dirL] == -1)          chosenTurn = 'L';
+        else if (straightExists && adjNode[currGraphNode][dirS] == -1) chosenTurn = 'S';
+        else if (rightBranch && adjNode[currGraphNode][dirR] == -1)    chosenTurn = 'R';
+        else {
+            // DFS Priority 2: All branches visited -> backtrack along DFS parent edge
+            if (dfsStackTop > 0) {
+                int parent = dfsStack[dfsStackTop - 1];
+                if (leftBranch && adjNode[currGraphNode][dirL] == parent)          chosenTurn = 'L';
+                else if (straightExists && adjNode[currGraphNode][dirS] == parent) chosenTurn = 'S';
+                else if (rightBranch && adjNode[currGraphNode][dirR] == parent)    chosenTurn = 'R';
+            }
+            if (chosenTurn == 'B') {
+                if (leftBranch)          chosenTurn = 'L';
+                else if (straightExists) chosenTurn = 'S';
+                else if (rightBranch)    chosenTurn = 'R';
+            }
+        }
+    }
+
+    departFromGraphNode(chosenTurn);
+    return chosenTurn;
+}
+
+// Runs Dijkstra's algorithm on the mapped coordinate graph to find the shortest weighted
+// path from startNode to targetNode and generates the LSR... turn command string.
+int computeDijkstraShortestPath(int startNode, int targetNode, char outCommands[], int &outLen) {
+    int dist[MAX_GRAPH_NODES];
+    bool visited[MAX_GRAPH_NODES];
+    int parentNode[MAX_GRAPH_NODES];
+    int parentDir[MAX_GRAPH_NODES];
+
+    for (int i = 0; i < numGraphNodes; i++) {
+        dist[i] = INF_WEIGHT;
+        visited[i] = false;
+        parentNode[i] = -1;
+        parentDir[i] = -1;
+    }
+    dist[startNode] = 0;
+
+    for (int step = 0; step < numGraphNodes; step++) {
+        int u = -1;
+        for (int i = 0; i < numGraphNodes; i++) {
+            if (!visited[i] && (u == -1 || dist[i] < dist[u])) {
+                u = i;
+            }
+        }
+        if (u == -1 || dist[u] >= INF_WEIGHT || u == targetNode) break;
+        visited[u] = true;
+
+        for (int d = 0; d < 4; d++) {
+            int v = adjNode[u][d];
+            int w = adjWeight[u][d];
+            if (v != -1 && !visited[v] && dist[u] + w < dist[v]) {
+                dist[v] = dist[u] + w;
+                parentNode[v] = u;
+                parentDir[v] = d;
+            }
+        }
+    }
+
+    if (targetNode < 0 || targetNode >= numGraphNodes || dist[targetNode] >= INF_WEIGHT) {
+        return INF_WEIGHT;
+    }
+
+    int edgeDirs[MAX_GRAPH_NODES];
+    int numEdges = 0;
+    int curr = targetNode;
+    while (curr != startNode && curr != -1 && numEdges < MAX_GRAPH_NODES) {
+        edgeDirs[numEdges++] = parentDir[curr];
+        curr = parentNode[curr];
+    }
+
+    for (int i = 0; i < numEdges / 2; i++) {
+        int tmp = edgeDirs[i];
+        edgeDirs[i] = edgeDirs[numEdges - 1 - i];
+        edgeDirs[numEdges - 1 - i] = tmp;
+    }
+
+    outLen = 0;
+    for (int i = 1; i < numEdges; i++) {
+        outCommands[outLen++] = deltaDirToTurn(edgeDirs[i - 1], edgeDirs[i]);
+    }
+    outCommands[outLen] = '\0';
+    return dist[targetNode];
+}
+
+// ---- 6. Motor Driver Functions (L298N Appendix A) ----
+
+void driveOneMotor(int pinA, int pinB, int pinPwm, int speed) {
+    if (speed > 0) {
+        digitalWrite(pinA, HIGH);
+        digitalWrite(pinB, LOW);
+        analogWrite(pinPwm, speed);
+    } else if (speed < 0) {
+        digitalWrite(pinA, LOW);
+        digitalWrite(pinB, HIGH);
+        analogWrite(pinPwm, -speed);
+    } else {
+        digitalWrite(pinA, LOW);
+        digitalWrite(pinB, LOW);
+        analogWrite(pinPwm, 0);
+    }
+}
+
+void setMotors(int leftSpeed, int rightSpeed) {
+    clampMotorCommands(leftSpeed, rightSpeed, MAX_PWM);
+    driveOneMotor(PIN_IN1, PIN_IN2, PIN_ENA, leftSpeed);
+    driveOneMotor(PIN_IN3, PIN_IN4, PIN_ENB, rightSpeed);
+}
+
+void readSensors(int raw[5], float norm[5]);
+
+void executeTurn(char turn) {
+    if (turn == 'S') {
+        junctionCooldown = 80;
+        return;
+    }
+
+    if (turn == 'L') {
+        setMotors(-TURN_SPEED, +TURN_SPEED);
+        delay(BLIND_TURN_90_MS);
+        unsigned long startMs = millis();
+        while (millis() - startMs < 650) {
+            int raw[5]; float norm[5];
+            readSensors(raw, norm);
+            if (norm[2] > LINE_THRESH) break;
+            delay(5);
+        }
+    } else if (turn == 'R') {
+        setMotors(+TURN_SPEED, -TURN_SPEED);
+        delay(BLIND_TURN_90_MS);
+        unsigned long startMs = millis();
+        while (millis() - startMs < 650) {
+            int raw[5]; float norm[5];
+            readSensors(raw, norm);
+            if (norm[2] > LINE_THRESH) break;
+            delay(5);
+        }
+    } else if (turn == 'B') {
+        setMotors(+TURN_SPEED, -TURN_SPEED);
+        delay(BLIND_TURN_180_MS);
+        unsigned long startMs = millis();
+        while (millis() - startMs < 800) {
+            int raw[5]; float norm[5];
+            readSensors(raw, norm);
+            if (norm[2] > LINE_THRESH) break;
+            delay(5);
+        }
+    }
+
+    setMotors(0, 0);
+    delay(20);
+    prevError = 0.0f;
+    lostLineCount = 0;
+    junctionCooldown = 80;
+}
+
+// ---- 7. Sensor Reading & Startup Calibration ----
+
+void calibrateSensors() {
+    Serial.println("Starting sensor calibration...");
+    unsigned long startMs = millis();
+    int globalMin = 4095;
+    int globalMax = 0;
+
+    while (millis() - startMs < CALIB_MS) {
+        for (int i = 0; i < 5; i++) {
+            int raw = analogRead(SENSOR_PINS[i]);
+            if (raw < sensorMin[i]) sensorMin[i] = raw;
+            if (raw > sensorMax[i]) sensorMax[i] = raw;
+            if (raw < globalMin) globalMin = raw;
+            if (raw > globalMax) globalMax = raw;
+        }
+        delay(10);
+    }
+
+    for (int i = 0; i < 5; i++) {
+        if (sensorMax[i] - sensorMin[i] < 100) {
+            if (globalMax - globalMin >= 100) {
+                sensorMin[i] = globalMin;
+                sensorMax[i] = globalMax;
+            } else {
+                sensorMin[i] = 200;
+                sensorMax[i] = 3800;
+            }
+        }
+    }
+    Serial.println("Calibration done!");
+}
+
+void readSensors(int raw[5], float norm[5]) {
+    for (int i = 0; i < 5; i++) {
+        raw[i] = analogRead(SENSOR_PINS[i]);
+        norm[i] = normalizeSensor(raw[i], sensorMin[i], sensorMax[i]);
+    }
+}
+
+// ---- 8. Arduino setup() and loop() ----
+
+void setup() {
+    Serial.begin(115200);
+
+    for (int i = 0; i < 5; i++) {
+        pinMode(SENSOR_PINS[i], INPUT);
+    }
+
+    pinMode(PIN_ENA, OUTPUT);
+    pinMode(PIN_IN1, OUTPUT);
+    pinMode(PIN_IN2, OUTPUT);
+    pinMode(PIN_ENB, OUTPUT);
+    pinMode(PIN_IN3, OUTPUT);
+    pinMode(PIN_IN4, OUTPUT);
+    pinMode(PIN_END_LED, OUTPUT);
+
+    setMotors(0, 0);
+    digitalWrite(PIN_END_LED, LOW);
+
+    initMazeGraph();
+    calibrateSensors();
+    lastLoopMs = millis();
+}
+
+void loop() {
+    if (allRunsFinished) return;
+
+    unsigned long nowMs = millis();
+    if (nowMs - lastLoopMs < LOOP_MS) return;
+    lastLoopMs = nowMs;
+
+    if (junctionCooldown > 0) junctionCooldown--;
+    segmentLoops++;
+
+    int raw[5];
+    float norm[5];
+    readSensors(raw, norm);
+
+    // 1. Detect Junction or End Box trigger
+    bool isCentered = (std::fabs(currentPos) < 0.65f);
+    bool leftBranch = isCentered && (norm[0] > LINE_THRESH && norm[1] > LINE_THRESH);
+    bool rightBranch = isCentered && (norm[4] > LINE_THRESH && norm[3] > LINE_THRESH);
+    bool allFiveOn = (norm[0] > LINE_THRESH && norm[1] > LINE_THRESH &&
+                      norm[2] > LINE_THRESH && norm[3] > LINE_THRESH &&
+                      norm[4] > LINE_THRESH);
+
+    if (junctionCooldown == 0 && (leftBranch || rightBranch || allFiveOn)) {
+        // Roll forward onto junction center (48 mm from sensor bar to wheel axle)
+        // Latch side branches during the initial 80 ms sweep across the cross-line
+        setMotors(BASE_SPEED, BASE_SPEED);
+        for (unsigned long elapsed = 0; elapsed < ROLL_FORWARD_MS; elapsed += 10) {
+            delay(10);
+            readSensors(raw, norm);
+            if (elapsed < 80) {
+                if (norm[0] > LINE_THRESH && norm[1] > LINE_THRESH) leftBranch = true;
+                if (norm[4] > LINE_THRESH && norm[3] > LINE_THRESH) rightBranch = true;
+            }
+        }
+        readSensors(raw, norm);
+
+        // Only the 400x400 mm solid END box keeps all 5 sensors high after rolling forward
+        bool stillAllFiveOn = (norm[0] > LINE_THRESH && norm[1] > LINE_THRESH &&
+                               norm[2] > LINE_THRESH && norm[3] > LINE_THRESH &&
+                               norm[4] > LINE_THRESH);
+
+        if (stillAllFiveOn) {
+            setMotors(0, 0);
+            digitalWrite(PIN_END_LED, HIGH);
+
+            if (!isReplayMode) {
+                int endNode = arriveAtGraphNode(segmentLoops, COORD_SNAP_TOL);
+                int shortestWeight = computeDijkstraShortestPath(0, endNode, pathTurns, pathLen);
+                Serial.printf("\nDRY RUN DONE! Mapped Nodes = %d | Shortest Weight = %d | Optimal Shortest Path = %s\n",
+                              numGraphNodes, shortestWeight, pathTurns);
+                delay(REPLAY_WAIT_MS);
+                resetBotToStartForReplay();
+                digitalWrite(PIN_END_LED, LOW);
+                isReplayMode = true;
+                replayIndex = 0;
+                lostLineCount = 0;
+                segmentLoops = 0;
+                junctionCooldown = 80;
+                return;
+            } else {
+                Serial.println("\nACTUAL RUN FINISHED! Optimal path completed.");
+                allRunsFinished = true;
+                return;
+            }
+        }
+
+        bool straightExists = (norm[1] > LINE_THRESH || norm[2] > LINE_THRESH || norm[3] > LINE_THRESH);
+
+        char chosenTurn = 'S';
+        if (isReplayMode && replayIndex < pathLen) {
+            chosenTurn = pathTurns[replayIndex++];
+        } else {
+            chosenTurn = chooseDfsTurnAndRecord(segmentLoops, leftBranch, straightExists, rightBranch, COORD_SNAP_TOL);
+        }
+
+        segmentLoops = 0;
+        executeTurn(chosenTurn);
+        return;
+    }
+
+    // 2. Line Tracking with Weighted Centroid PD/PID Control
+    bool lineValid = computeLinePosition(norm, currentPos);
+    int leftCmd = 0;
+    int rightCmd = 0;
+
+    if (lineValid) {
+        if (lostLineCount > 0) prevError = currentPos;
+        lostLineCount = 0;
+
+        float error = currentPos;
+        float pTerm = KP_GAIN * error;
+
+        integralSum += error * DT_SEC;
+        if (integralSum > INTEGRAL_MAX)  integralSum = INTEGRAL_MAX;
+        if (integralSum < -INTEGRAL_MAX) integralSum = -INTEGRAL_MAX;
+        float iTerm = KI_GAIN * integralSum;
+
+        float dTerm = KD_GAIN * ((error - prevError) / DT_SEC);
+        if (dTerm > 60.0f)  dTerm = 60.0f;
+        if (dTerm < -60.0f) dTerm = -60.0f;
+        prevError = error;
+
+        lastCorrection = pTerm + iTerm + dTerm;
+
+        int steer = (int)lastCorrection;
+        int effectiveBase = (std::fabs(currentPos) > 0.6f) ? 80 : BASE_SPEED;
+        leftCmd = effectiveBase + steer;
+        rightCmd = effectiveBase - steer;
+    } else {
+        // 3. Lost Line & Dead-End Handling
+        lostLineCount++;
+
+        if (lostLineCount <= HOLD_LOOPS) {
+            int steer = (int)lastCorrection;
+            leftCmd = BASE_SPEED + steer;
+            rightCmd = BASE_SPEED - steer;
+        } else if (lostLineCount >= DEAD_END_LOOPS && !isReplayMode) {
+            chooseDfsTurnAndRecord(segmentLoops, false, false, false, COORD_SNAP_TOL);
+            segmentLoops = 0;
+            executeTurn('B');
+            lostLineCount = 0;
+            return;
+        } else if (lostLineCount <= STOP_TIMEOUT_LOOPS) {
+            if (currentPos >= 0.0f) {
+                leftCmd = +TURN_SPEED;
+                rightCmd = -TURN_SPEED;
+            } else {
+                leftCmd = -TURN_SPEED;
+                rightCmd = +TURN_SPEED;
+            }
+        } else {
+            leftCmd = 0;
+            rightCmd = 0;
+        }
+    }
+
+    clampMotorCommands(leftCmd, rightCmd, MAX_PWM);
+    setMotors(leftCmd, rightCmd);
+
+    Serial.printf(
+        "s=[%4d,%4d,%4d,%4d,%4d] | err=%+.2f | L=%+4d R=%+4d | node=%d(%+d,%+d) | path=%s\n",
+        raw[0], raw[1], raw[2], raw[3], raw[4],
+        currentPos, leftCmd, rightCmd, currGraphNode, nodeX[currGraphNode], nodeY[currGraphNode], pathTurns
+    );
+}
+
+int main() {
+    wbBot = new webots::Supervisor();
+    wbLeftMotor = wbBot->getMotor("left_motor");
+    wbRightMotor = wbBot->getMotor("right_motor");
+    wbLeftMotor->setPosition(INFINITY);
+    wbRightMotor->setPosition(INFINITY);
+    wbLeftMotor->setVelocity(0.0);
+    wbRightMotor->setVelocity(0.0);
+
+    const char *irNames[5] = {"IR_S1", "IR_S2", "IR_S3", "IR_S4", "IR_S5"};
+    for (int i = 0; i < 5; i++) {
+        wbIrSensors[i] = wbBot->getDistanceSensor(irNames[i]);
+        wbIrSensors[i]->enable(10);
+    }
+    wbLed = wbBot->getLED("end_led");
+    wbLed->set(0);
+
+    wbBot->step(10);
+    setup();
+    while (wbBot->step(10) != -1) {
+        loop();
+    }
+    delete wbBot;
     return 0;
 }
