@@ -2,7 +2,6 @@
 
 ## 1. Role of P, I, and D
 
-Think of steering a bicycle to stay on a painted line on the road:
 
 * **P (Proportional) — "How far am I from the line right now?"**
   The further the robot drifts from the center of the line, the harder it steers back. On its own, P makes the robot swing too hard, shoot past the center, and zig-zag back and forth.

@@ -1,14 +1,14 @@
 # Task 2: Motor Driver Datasheet Analysis (18 pts)
 
-We analyze the **Toshiba TB6612FNG** dual motor driver IC (and compare its ratings with the Appendix A **L298N** driver).
+We analyze the **Toshiba TB6612FNG** dual motor driver IC.
 
 ---
 
 ## 1. Three Datasheet Parameters That Constrain the Design
 
 1. **Motor Supply Voltage ($V_M$):**
-   * **Datasheet Spec:** Operating range is $4.5\text{ V}$ to $13.5\text{ V}$, with an absolute maximum rating of $15.0\text{ V}$ (`VERIFY` on `robu.in` / Toshiba datasheet).
-   * **How it affected our design:** A fully charged 3S LiPo battery reaches $12.6\text{ V}$, which is too close to the $15.0\text{ V}$ limit when motors brake and create voltage spikes. So in our BOM (`BOM/task_4.md`), we picked a **2S LiPo battery ($7.4\text{ V}$ nominal, $8.4\text{ V}$ max)** for the TB6612FNG build (while the Appendix A L298N build handles up to $46\text{ V}$).
+   * **Datasheet Spec:** Operating range is $4.5\text{ V}$ to $13.5\text{ V}$, with an absolute maximum rating of $15.0\text{ V}$.
+   * **How it affected our design:** A fully charged 3S LiPo battery reaches $12.6\text{ V}$, which is too close to the $15.0\text{ V}$ limit when motors brake and create voltage spikes. So in our BOM (`BOM/task_4.md`), we picked a **2S LiPo battery ($7.4\text{ V}$ nominal, $8.4\text{ V}$ max)** for the TB6612FNG build.
 
 2. **Output Current ($I_{\text{out}}$) & Internal Resistance ($R_{\text{DS(on)}}$):**
    * **Datasheet Spec:** $1.2\text{ A}$ continuous current ($3.2\text{ A}$ peak) per channel, with $0.5\ \Omega$ internal MOSFET resistance.
