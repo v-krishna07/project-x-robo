@@ -57,6 +57,8 @@ line-maze-solver/src/test_task_9
 # Webots Cache & Project Metadata
 *.wbproj
 *.wbt.lock
+.fast_mode
+webots.log
 
 # IDEs and Editors
 .vscode/
@@ -66,3 +68,4 @@ line-maze-solver/src/test_task_9
 
 # Specific ignored files
 line-maze-solver/main.py
+

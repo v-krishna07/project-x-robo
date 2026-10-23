@@ -1,34 +1,25 @@
-# Webots R2025a / R2025b C++ Simulation (`webots_sim`)
+# Webots Python Line Follower Simulation (`webots_sim`)
 
-This folder contains the complete 3D Webots simulation of the **Techfest IIT Bombay Meshmerize (Figure 1)** arena and autonomous robot using **infrared reflectance sensors (`DistanceSensor` with `type "infra-red"`)** and the exact **Task 9 C++ algorithm** (weighted centroid PD control, DFS coordinate system mapping, Dijkstra's shortest weighted path algorithm, and `LSR...` command replay).
+Simple, baseline **Python** Webots simulation matching the Task 9 digital `0/1` weighted-centroid + PD line follower code across **4 curved test maps**.
 
----
+## Folder Structure
 
-## 1. Directory Structure
+* `controllers/line_bot_py/line_bot_py.py` — Small, easy-to-read Python controller (`WEIGHTS = [-2.0, -1.0, 0.0, 1.0, 2.0]`, `KP = 90.0`, `KD = 1.5`, `SPEED = 150`, and lost-line recovery using `lastError`).
+* `protos/LineBot.proto` — 2WD robot with 5 downward infrared sensors (`IR_S1` to `IR_S5`, `DistanceSensor` with `type "infra-red"`).
+* `worlds/` — 4 curved track worlds ready to open in Webots:
+  1. `map_1_random_organic_loop.wbt` — Random organic curved loop (matches reference hand-drawn curve sketch).
+  2. `map_2_stadium_oval_track.wbt` — Stadium oval track with straightaways and semicircular bends (matches reference track image).
+  3. `map_3_sweeping_s_curves.wbt` — Random sweeping S-curves and multi-radius lobes.
+  4. `map_4_kidney_chicane_loop.wbt` — Random kidney loop with chicane curves.
+* `map_previews/` — Top-down PNG previews of all 4 curved maps.
 
-* **`protos/LineBot.proto`** — 3D differential-drive robot (`< 220x220x220 mm`) equipped with:
-  * 5 downward-facing IR reflectance sensors (`IR_S1..IR_S5`, `DistanceSensor` with `type "infra-red"`, 12-bit lookup table `0..4095`) placed $48\text{ mm}$ ahead of the wheel axle at lateral offsets $[+24, +12, 0, -12, -24]\text{ mm}$.
-  * 2 driven wheels (`left_motor`, `right_motor`) and 1 low-friction front caster (`front_caster`).
-  * 1 red finish indicator LED (`end_led`).
-* **`controllers/line_bot_cpp/line_bot_cpp.cpp`** — C++ controller mapping Webots `DistanceSensor`, `Motor`, and `LED` devices to the exact Appendix A ESP32 pins (`GPIO 34, 35, 32, 33, 25` and `L298N` `GPIO 14, 27, 26, 13, 12, 11`) and executing the Task 9 C++ code.
-* **`controllers/line_bot_cpp/Makefile`** — Build file to compile `line_bot_cpp.cpp` against Webots C++ controller libraries.
-* **`worlds/meshmerize.wbt`** — Official $230\text{ cm} \times 230\text{ cm}$ Meshmerize Figure 1 arena with $30\text{ mm}$ white vinyl strips and $400 \times 400\text{ mm}$ white `END` box.
-* **`tools/generate_maze.py`** — Utility script that generates `worlds/meshmerize.wbt` from the Figure 1 CAD coordinates.
+## How to Run & Switch Maps in Webots
 
----
-
-## 2. How to Compile and Run in Webots
-
-1. Compile the C++ controller inside `webots_sim/controllers/line_bot_cpp`:
-   ```bash
-   cd webots_sim/controllers/line_bot_cpp
-   make
-   ```
-2. Open **Webots R2025a / R2025b** -> **File -> Open World...** and select:
-   ```text
-   webots_sim/worlds/meshmerize.wbt
-   ```
-3. Press **Play**:
-   * **Dry Run:** The robot calibrates its 5 IR sensors, explores the maze using **DFS coordinate mapping**, and stops on the $400 \times 400\text{ mm}$ `END` box while lighting the Red LED.
-   * **Dijkstra Path Optimization:** It runs **Dijkstra's shortest weighted path algorithm** on the 27 mapped coordinate nodes to produce the optimal 17-turn command string `RSRLLRLRLLSRSLRLL`.
-   * **Actual Run:** The robot resets to `START` and traverses the shortest path using the `LSR...` commands to reach the `END` box in minimum time.
+1. Open **Webots** and click **File -> Open World...** (`Ctrl+O` / `Cmd+O`).
+2. Select any of the 4 world files inside `webots_sim/worlds/`:
+   * `worlds/map_1_random_organic_loop.wbt`
+   * `worlds/map_2_stadium_oval_track.wbt`
+   * `worlds/map_3_sweeping_s_curves.wbt`
+   * `worlds/map_4_kidney_chicane_loop.wbt`
+3. Press **Play** — Webots runs `controllers/line_bot_py/line_bot_py.py` automatically (no C++ compilation needed).
+4. To switch to another map at any time, click **Pause**, go to **File -> Open World...**, and open the next `.wbt` file in `webots_sim/worlds/`.

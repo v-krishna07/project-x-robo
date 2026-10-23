@@ -1,270 +1,231 @@
 // ============================================================================
 // FILE: src/task_9/task_9.ino
-// Task 9: ESP32 Line Follower + Complete Maze Solver (Appendix A Hardware)
-// - Follows line using 5 IR sensors (GPIO 34, 35, 32, 33, 25), weighted
-//   centroid estimation, and PD/PID control via L298N (GPIO 14, 27, 26, 13, 12, 11).
-// - Maps junctions and segments in a 2D coordinate system using DFS during Dry Run.
-// - Computes the shortest weighted path using Dijkstra's algorithm and generates
-//   the optimal LSR... turn command sequence.
-// - Replays the optimal LSR... path autonomously on the Actual Run.
-// - Mirrors the exact core implementation and logic of webots_sim/controllers/line_bot_cpp.
+// Task 9: ESP32 Line Follower & Maze Solver (Appendix A Hardware)
+//
+// WHAT THIS PROGRAM DOES (STEP BY STEP):
+//   1. Sets up the exact ESP32 GPIO pins from Appendix A inside void setup():
+//      - 5 Analog IR Sensors: GPIO 34, 35, 32, 33, 25 (weights -2, -1, 0, +1, +2)
+//      - L298N Motor Driver:  ENA=14, IN1=27, IN2=26, ENB=13, IN3=12, IN4=11
+//      - Serial Telemetry:    115200 baud
+//   2. Calibrates all 5 IR sensors at startup (min-max normalization to 0.0..1.0).
+//   3. Follows the line smoothly using the Weighted Centroid formula and a
+//      PD (Proportional-Derivative, KI=0) controller.
+//   4. Maps junctions and dead ends in a 2D (X, Y) coordinate system using
+//      Depth-First Search (DFS) during the Dry Run, handling 90-degree turns,
+//      T-junctions, 4-way crossroads, dead ends, and closed loops.
+//   5. Runs Dijkstra's algorithm when the 400x400 mm END box is reached to
+//      find the shortest weighted path and converts it into "LSR..." commands
+//      (plus algebraic "X B Y" dead-end reduction) for the Actual Run replay.
 // ============================================================================
 
 #include <Arduino.h>
 #include <cmath>
 #include <cstdlib>
 
-// ---- 1. Appendix A Pin Definitions (Do Not Change) ----
+// ============================================================================
+// 1. APPENDIX A HARDWARE PIN DEFINITIONS (EXACT MATCH TO SPEC SHEET)
+// ============================================================================
 
-// 5 IR sensors from left (IR_S1) to right (IR_S5)
-const int PIN_IR_S1 = 34; // leftmost sensor, weight -2 (ADC1_CH6, input only)
-const int PIN_IR_S2 = 35; // second sensor,   weight -1 (ADC1_CH7, input only)
-const int PIN_IR_S3 = 32; // center sensor,   weight  0 (ADC1_CH4)
-const int PIN_IR_S4 = 33; // fourth sensor,   weight +1 (ADC1_CH5)
-const int PIN_IR_S5 = 25; // rightmost sensor,weight +2 (ADC1_CH8 per Appendix A)
+// Five analog infrared (IR) reflectance sensors from Left (S1) to Right (S5).
+// Higher analogRead() voltage/value (0..4095) means the sensor sees the line.
+const int PIN_IR_S1 = 34; // Leftmost IR sensor  (ADC1_CH6, input only), weight = -2
+const int PIN_IR_S2 = 35; // Inner-left sensor   (ADC1_CH7, input only), weight = -1
+const int PIN_IR_S3 = 32; // Center IR sensor    (ADC1_CH4),             weight =  0
+const int PIN_IR_S4 = 33; // Inner-right sensor  (ADC1_CH5),             weight = +1
+const int PIN_IR_S5 = 25; // Rightmost IR sensor (ADC1_CH8),             weight = +2
 
+// Array of the 5 sensor GPIO pins so we can read them inside a simple for-loop
 const int SENSOR_PINS[5] = {PIN_IR_S1, PIN_IR_S2, PIN_IR_S3, PIN_IR_S4, PIN_IR_S5};
+
+// Position weights for each sensor from left to right: [-2, -1, 0, 1, 2]
 const float SENSOR_WEIGHTS[5] = {-2.0f, -1.0f, 0.0f, 1.0f, 2.0f};
 
-// L298N motor driver pins from Appendix A
-const int PIN_ENA = 14; // left motor PWM speed (0 to 255 via analogWrite)
-const int PIN_IN1 = 27; // left motor direction A
-const int PIN_IN2 = 26; // left motor direction B
-const int PIN_ENB = 13; // right motor PWM speed (0 to 255 via analogWrite)
-const int PIN_IN3 = 12; // right motor direction A
-const int PIN_IN4 = 11; // right motor direction B
+// L298N Dual H-Bridge Motor Driver pins from Appendix A
+const int PIN_ENA = 14; // Left motor PWM speed pin (0 to 255 via analogWrite)
+const int PIN_IN1 = 27; // Left motor direction pin A
+const int PIN_IN2 = 26; // Left motor direction pin B
+const int PIN_ENB = 13; // Right motor PWM speed pin (0 to 255 via analogWrite)
+const int PIN_IN3 = 12; // Right motor direction pin A
+const int PIN_IN4 = 11; // Right motor direction pin B
 
-// Red LED pin to glow at END box (GPIO 2 is onboard LED on ESP32)
-const int PIN_END_LED = 2;
+// ============================================================================
+// 2. TUNING CONSTANTS (PID GAINS, SPEEDS & TIMINGS)
+// ============================================================================
 
-// ---- 2. Tuning Constants (PID, Speeds & Turn Timings) ----
-// PID TUNING NOTES:
-//   - KP = 85.0 steers strongly toward the center of the 30 mm white line.
-//   - KI = 0.0 is kept at zero so 90-degree corners do not cause integral windup overshoot.
-//   - KD = 15.0 acts as a damper to suppress side-to-side oscillation on straight segments.
-//   - Corner speed reduction (effectiveBase = 80 when |currentPos| > 0.6) prevents understeer.
+// PID Control Gains:
+// - KP_GAIN: Proportional gain. Steers the robot back toward the center (0.0).
+// - KI_GAIN: Integral gain. Set to 0.0 (PD control) so 90-degree turns do not
+//            accumulate old error ("integral windup") and cause overshoot.
+// - KD_GAIN: Derivative gain. Acts like a shock absorber to stop side-to-side wobble.
+const float KP_GAIN = 85.0f;     // Proportional steering strength
+const float KI_GAIN = 0.0f;      // Integral gain disabled (0.0) for sharp maze corners
+const float KD_GAIN = 15.0f;     // Derivative damping gain to stop zig-zag oscillation
+const float INTEGRAL_MAX = 5.0f; // Safety cap for integral sum
 
-const float KP_GAIN = 85.0f;          // proportional gain
-const float KI_GAIN = 0.0f;           // integral gain (0 for PD control)
-const float KD_GAIN = 15.0f;          // derivative gain
-const float INTEGRAL_MAX = 5.0f;      // integral windup guard
+// Motor Speed Constants (PWM range is 0 to 255):
+const int BASE_SPEED = 150;   // Normal forward driving speed on straight lines
+const int CORNER_SPEED = 80;  // Slower forward speed when error is large on curves
+const int TURN_SPEED = 130;   // Spinning speed when making 90-deg or 180-deg turns
+const int MAX_PWM = 255;      // Maximum allowed PWM value for analogWrite()
 
-const int BASE_SPEED = 150;           // normal forward cruising speed (0 to 255)
-const int TURN_SPEED = 130;           // on-axis turning speed
-const int MAX_PWM = 255;              // maximum PWM magnitude
+// Timing Constants:
+const unsigned long CALIB_MS = 3000; // 3000 ms (3 seconds) at startup to calibrate sensors
+const unsigned long LOOP_MS = 10;    // Run the main control loop every 10 ms (100 Hz)
+const float DT_SEC = 0.010f;         // Loop time step in seconds (10 ms = 0.010 s)
 
-const unsigned long CALIB_MS = 3000;  // 3-second startup sensor calibration window on hardware
-const unsigned long LOOP_MS = 10;     // 100 Hz control loop period (10 ms)
-const float DT_SEC = 0.010f;          // 10 ms loop step in seconds
+// Line & Lost-Line Error Handling Thresholds:
+const float LINE_THRESH = 0.55f;     // Normalized sensor value > 0.55 means "on the line"
+const int HOLD_LOOPS = 5;            // Hold last steering for 5 loops (50 ms) over tiny gaps
+const int DEAD_END_LOOPS = 12;       // 12 loops (120 ms) of no line means we hit a dead end
+const int STOP_TIMEOUT_LOOPS = 60;   // 60 loops (600 ms) of no line stops motors for safety
 
-const float LINE_THRESH = 0.55f;      // normalized reading > 0.55 indicates white line detected
-const int HOLD_LOOPS = 5;             // hold last steering command for 5 loops (50 ms) over brief gaps
-const int DEAD_END_LOOPS = 12;        // 12 lost-line loops (120 ms) confirms a dead end
-const int STOP_TIMEOUT_LOOPS = 60;    // 60 lost-line loops (600 ms) triggers a safe stop
+// Turn & Intersection Alignment Timings:
+const unsigned long ROLL_FORWARD_MS = 260;   // Time (ms) to roll wheels forward onto junction center
+const unsigned long BLIND_TURN_90_MS = 320;  // Initial spin time (ms) to clear current line on 90-deg turn
+const unsigned long BLIND_TURN_180_MS = 650; // Initial spin time (ms) to clear dead end on 180-deg turn
+const unsigned long REPLAY_WAIT_MS = 5000;   // 5-second pause at END box before starting Actual Run replay
 
-const unsigned long ROLL_FORWARD_MS = 260;   // roll axle onto junction center (48 mm ahead of axle)
-const unsigned long BLIND_TURN_90_MS = 320;  // initial blind spin to clear straight branch on 90-deg turn
-const unsigned long BLIND_TURN_180_MS = 650; // initial blind spin on 180-deg dead-end turn
-const unsigned long REPLAY_WAIT_MS = 5000;   // 5-second pause at END to place bot at START for Actual Run
+// ============================================================================
+// 3. GLOBAL STATE VARIABLES (PID + DFS COORDINATE GRAPH + DIJKSTRA)
+// ============================================================================
 
-// ---- 3. Global Variables for Calibration, PID & DFS/Dijkstra Maze Memory ----
-
+// Minimum (floor) and maximum (line) raw ADC values learned during startup calibration
 int sensorMin[5] = {4095, 4095, 4095, 4095, 4095};
 int sensorMax[5] = {0, 0, 0, 0, 0};
 
-float currentPos = 0.0f;
-float prevError = 0.0f;
-float integralSum = 0.0f;
-float lastCorrection = 0.0f;
+// PID controller state variables
+float currentPos = 0.0f;       // Current line position from -2.0 (far left) to +2.0 (far right)
+float prevError = 0.0f;        // Line position error from the previous 10 ms loop
+float integralSum = 0.0f;      // Running sum of error over time
+float lastCorrection = 0.0f;   // Last steering correction calculated by PID
 
-int lostLineCount = 0;
-int junctionCooldown = 0;
-unsigned long lastLoopMs = 0;
+// Loop counters and timers
+int lostLineCount = 0;         // Counts how many consecutive loops all 5 sensors see no line
+int junctionCooldown = 0;      // Cooldown counter (80 loops = 800 ms) so we don't trigger the same junction twice
+int segmentLoops = 0;          // Counts 10 ms loops driven along the current straight line segment (edge weight)
+unsigned long lastLoopMs = 0;  // Stores millis() timestamp of the last control loop
 
-// Coordinate Graph for DFS Exploration & Dijkstra Shortest Weighted Path
-const int MAX_GRAPH_NODES = 64;
-const int INF_WEIGHT = 1000000;
-const int COORD_SNAP_TOL = 25;
+// DFS Coordinate Graph & Dijkstra Shortest-Path Variables:
+// Directions: 0 = North (+Y), 1 = East (+X), 2 = South (-Y), 3 = West (-X)
+const int MAX_NODES = 64;      // Maximum number of junctions/nodes in the maze graph
+const int INF_COST = 999999;   // Infinity value used by Dijkstra's shortest-path algorithm
+const int COORD_SNAP = 25;     // Tolerance (in loop ticks) to merge revisited (X, Y) junction coordinates
+const int DIR_DX[4] = {0, 1, 0, -1}; // X step for North(0), East(1), South(2), West(3)
+const int DIR_DY[4] = {1, 0, -1, 0}; // Y step for North(0), East(1), South(2), West(3)
 
-// Cardinal directions in robot coordinate frame: 0=North(+Y), 1=East(+X), 2=South(-Y), 3=West(-X)
-const int DIR_DX[4] = {0, 1, 0, -1};
-const int DIR_DY[4] = {1, 0, -1, 0};
+int numNodes = 1;                    // Total nodes discovered so far (Node 0 is START at 0,0)
+int nodeX[MAX_NODES];                // X coordinate of each discovered node in the coordinate system
+int nodeY[MAX_NODES];                // Y coordinate of each discovered node in the coordinate system
+int adjNode[MAX_NODES][4];           // adjNode[u][dir] = neighbor node ID from node u in direction dir (-1 if none)
+int adjWeight[MAX_NODES][4];         // adjWeight[u][dir] = measured distance weight of that edge
+int currNode = 0;                    // Node ID of the last junction the robot departed from
+int currDir = 0;                     // Robot's current compass direction (0=N, 1=E, 2=S, 3=W)
+int dfsStack[MAX_NODES];             // Stack of parent nodes for DFS backtracking
+int dfsTop = 0;                      // Current top index of dfsStack[]
+bool isBacktracking = false;         // true when the robot is backtracking along an already-mapped edge
 
-int nodeX[MAX_GRAPH_NODES];          // X coordinate of each junction/node
-int nodeY[MAX_GRAPH_NODES];          // Y coordinate of each junction/node
-int adjNode[MAX_GRAPH_NODES][4];     // neighbor node index in cardinal direction d (0..3), or -1
-int adjWeight[MAX_GRAPH_NODES][4];   // edge weight (measured travel loops) in direction d
-int numGraphNodes = 1;               // node 0 is START at (0, 0)
+// Turn command string in "LSR..." format ('L'=Left, 'S'=Straight, 'R'=Right, 'B'=Back)
+char pathTurns[128];                 // Stores raw turns during exploration and optimal "LSR..." path for replay
+int pathLen = 0;                     // Number of turn commands currently stored in pathTurns[]
 
-int dfsStack[MAX_GRAPH_NODES];       // DFS parent stack for exact backtracking
-int dfsStackTop = 0;
-int currGraphNode = 0;
-int currHeadingDir = 0;              // 0=N, 1=E, 2=S, 3=W
-bool isDfsBacktracking = false;
-int segmentLoops = 0;                // forward control loops elapsed along current segment
+// Run mode flags:
+bool isReplayMode = false;           // false = Dry Run (exploring maze), true = Actual Run (replaying shortest path)
+int replayIndex = 0;                 // Index of the next turn command to execute during Actual Run replay
+bool allRunsFinished = false;        // Becomes true when the robot finishes the Actual Run
 
-char pathTurns[128];                 // LSR... command string for shortest path traversal
-int pathLen = 0;
+// ============================================================================
+// 4. BASIC MATH & SENSOR HELPER FUNCTIONS (TASK 1 & TASK 9)
+// ============================================================================
 
-bool isReplayMode = false;           // false = Dry Run (DFS mapping), true = Actual Run (Dijkstra LSR replay)
-int replayIndex = 0;
-bool allRunsFinished = false;
-
-// ---- 4. Core Math Functions (Centroid, Clamping, Normalization) ----
-
-int clampInt(int val, int minVal, int maxVal) {
-    if (val < minVal) return minVal;
-    if (val > maxVal) return maxVal;
-    return val;
-}
-
+// Clamps signed left and right motor commands into [-maxMag, +maxMag] while keeping +/- sign
 void clampMotorCommands(int &left, int &right, int maxMag) {
-    if (maxMag < 0) maxMag = -maxMag;
-    left = clampInt(left, -maxMag, +maxMag);
-    right = clampInt(right, -maxMag, +maxMag);
+    if (maxMag < 0) maxMag = -maxMag;           // Ensure maximum limit is positive
+    if (left > maxMag)   left = maxMag;         // Cap left motor at +maxMag
+    if (left < -maxMag)  left = -maxMag;        // Cap left motor at -maxMag
+    if (right > maxMag)  right = maxMag;        // Cap right motor at +maxMag
+    if (right < -maxMag) right = -maxMag;       // Cap right motor at -maxMag
 }
 
+// Converts a raw 12-bit sensor reading (0 to 4095) into a clean float from 0.0 (floor) to 1.0 (line)
 float normalizeSensor(int raw, int minVal, int maxVal) {
-    int span = maxVal - minVal;
-    if (span <= 0) return 0.0f;
-    float norm = (float)(raw - minVal) / (float)span;
-    if (norm < 0.0f) return 0.0f;
-    if (norm > 1.0f) return 1.0f;
+    if (maxVal <= minVal) return 0.0f;          // Guard against divide-by-zero if uncalibrated
+    float norm = (float)(raw - minVal) / (float)(maxVal - minVal);
+    if (norm < 0.0f) return 0.0f;               // Clamp below 0.0
+    if (norm > 1.0f) return 1.0f;               // Clamp above 1.0
     return norm;
 }
 
+// Estimates the line position using the weighted centroid formula:
+//   position = ((-2*S1) + (-1*S2) + (0*S3) + (1*S4) + (2*S5)) / (S1 + S2 + S3 + S4 + S5)
+// Returns true if the line is detected, or false if all 5 sensors are off the line (all-zero case).
 bool computeLinePosition(const float s[5], float &position) {
     float weightedSum = 0.0f;
     float totalSum = 0.0f;
-    bool anyOnLine = false;
 
     for (int i = 0; i < 5; i++) {
-        if (s[i] > LINE_THRESH) {
-            anyOnLine = true;
-            float val = s[i] - LINE_THRESH;
-            weightedSum += SENSOR_WEIGHTS[i] * val;
-            totalSum += val;
+        if (s[i] > LINE_THRESH) {               // Only use sensors that clearly see the white line
+            float activeVal = s[i] - LINE_THRESH;
+            weightedSum += SENSOR_WEIGHTS[i] * activeVal;
+            totalSum += activeVal;
         }
     }
 
-    if (!anyOnLine || totalSum <= 0.0001f) {
-        return false;
-    }
-
-    position = weightedSum / totalSum;
+    if (totalSum <= 0.0001f) return false;      // All-zero / lost-line guard: never divide by zero!
+    position = weightedSum / totalSum;          // Compute weighted average position in [-2.0, +2.0]
     return true;
 }
 
-// ---- 5. DFS Coordinate System Mapping, Dijkstra Shortest Path & LSR Generator ----
+// ============================================================================
+// 5. DFS COORDINATE MAPPING, DIJKSTRA SHORTEST PATH & "LSR..." GENERATOR
+// ============================================================================
 
-int turnToAngle(char c) {
-    if (c == 'L') return -90;
-    if (c == 'S') return 0;
-    if (c == 'R') return 90;
-    return 180;
-}
-
-char angleToTurn(int deg) {
-    int w = deg % 360;
-    if (w < 0) w += 360;
-    if (w == 0) return 'S';
-    if (w == 90) return 'R';
-    if (w == 180) return 'B';
-    return 'L';
-}
-
-int turnToDeltaDir(char c) {
-    if (c == 'L') return 3; // -90 deg mod 4
-    if (c == 'S') return 0; //   0 deg mod 4
-    if (c == 'R') return 1; // +90 deg mod 4
-    return 2;               // 180 deg mod 4
-}
-
-char deltaDirToTurn(int inDir, int outDir) {
-    int d = (outDir - inDir + 4) % 4;
-    if (d == 0) return 'S';
-    if (d == 1) return 'R';
-    if (d == 2) return 'B';
-    return 'L';
-}
-
+// Resets the coordinate graph at startup so Node 0 is at (0, 0) with all edges unexplored (-1)
 void initMazeGraph() {
-    numGraphNodes = 1;
+    numNodes = 1;
     nodeX[0] = 0;
     nodeY[0] = 0;
-    for (int i = 0; i < MAX_GRAPH_NODES; i++) {
+    for (int i = 0; i < MAX_NODES; i++) {
         for (int d = 0; d < 4; d++) {
             adjNode[i][d] = -1;
-            adjWeight[i][d] = 0;
+            adjWeight[i][d] = INF_COST;
         }
     }
-    dfsStackTop = 0;
-    currGraphNode = 0;
-    currHeadingDir = 0;
-    isDfsBacktracking = false;
-    segmentLoops = 0;
+    currNode = 0;
+    currDir = 0;
+    dfsTop = 0;
+    isBacktracking = false;
     pathLen = 0;
     pathTurns[0] = '\0';
 }
 
-int findNodeAtCoord(int x, int y, int tol) {
-    if (tol < 0) return -1;
-    for (int i = 0; i < numGraphNodes; i++) {
-        if (std::abs(nodeX[i] - x) <= tol && std::abs(nodeY[i] - y) <= tol) {
-            return i;
-        }
-    }
-    return -1;
+// Converts a turn character ('L', 'S', 'R', 'B') into a 90-degree direction step (0, 1, 2, or 3)
+int turnToDeltaDir(char turn) {
+    if (turn == 'S') return 0; // Straight = +0 (0 deg)
+    if (turn == 'R') return 1; // Right    = +1 (+90 deg)
+    if (turn == 'B') return 2; // Back     = +2 (+180 deg)
+    return 3;                  // Left     = +3 (-90 deg / +270 deg)
 }
 
-int arriveAtGraphNode(int segWeight, int coordTol) {
-    if (segWeight < 1) segWeight = 1;
-    int oppDir = (currHeadingDir + 2) % 4;
-    int arrived = currGraphNode;
-
-    if (isDfsBacktracking) {
-        if (dfsStackTop > 0) {
-            arrived = dfsStack[--dfsStackTop];
-        }
-    } else {
-        if (adjNode[currGraphNode][currHeadingDir] != -1) {
-            arrived = adjNode[currGraphNode][currHeadingDir];
-        } else {
-            int nx = nodeX[currGraphNode] + DIR_DX[currHeadingDir] * segWeight;
-            int ny = nodeY[currGraphNode] + DIR_DY[currHeadingDir] * segWeight;
-            int existing = findNodeAtCoord(nx, ny, coordTol);
-            if (existing != -1 && existing != currGraphNode) {
-                arrived = existing;
-            } else if (numGraphNodes < MAX_GRAPH_NODES) {
-                arrived = numGraphNodes++;
-                nodeX[arrived] = nx;
-                nodeY[arrived] = ny;
-            }
-            if (adjNode[currGraphNode][currHeadingDir] == -1 ||
-                segWeight < adjWeight[currGraphNode][currHeadingDir]) {
-                adjNode[currGraphNode][currHeadingDir] = arrived;
-                adjWeight[currGraphNode][currHeadingDir] = segWeight;
-                adjNode[arrived][oppDir] = currGraphNode;
-                adjWeight[arrived][oppDir] = segWeight;
-            }
-        }
-    }
-
-    currGraphNode = arrived;
-    return arrived;
+// Converts a direction change from inDir to outDir into a single turn command ('L', 'S', 'R', 'B')
+char deltaDirToTurn(int inDir, int outDir) {
+    int diff = (outDir - inDir + 4) % 4;
+    if (diff == 0) return 'S';
+    if (diff == 1) return 'R';
+    if (diff == 2) return 'B';
+    return 'L';
 }
 
+// Simplifies any dead-end turn triples ("X B Y") in a turn string using modulo-4 angle addition
 void reduceDeadEndsInPath(char path[], int &len) {
     bool changed = true;
     while (changed) {
         changed = false;
         for (int i = 1; i < len - 1; i++) {
             if (path[i] == 'B') {
-                int sumDeg = turnToAngle(path[i - 1]) + 180 + turnToAngle(path[i + 1]);
-                path[i - 1] = angleToTurn(sumDeg);
-                for (int j = i; j < len - 2; j++) {
-                    path[j] = path[j + 2];
-                }
+                // Combine the 3 turns (entry turn + Back + exit turn) into one single turn
+                int combinedDelta = (turnToDeltaDir(path[i - 1]) + 2 + turnToDeltaDir(path[i + 1])) % 4;
+                path[i - 1] = deltaDirToTurn(0, combinedDelta);
+                for (int j = i; j < len - 2; j++) path[j] = path[j + 2];
                 len -= 2;
                 path[len] = '\0';
                 changed = true;
@@ -274,83 +235,127 @@ void reduceDeadEndsInPath(char path[], int &len) {
     }
 }
 
-void departFromGraphNode(char chosenTurn) {
-    int outDir = (currHeadingDir + turnToDeltaDir(chosenTurn)) % 4;
-    if (chosenTurn == 'B' ||
-        (dfsStackTop > 0 && adjNode[currGraphNode][outDir] == dfsStack[dfsStackTop - 1])) {
-        isDfsBacktracking = true;
+// Updates the 2D coordinate graph when the robot arrives at a junction, dead end, or the END box
+int arriveAtGraphNode(int segWeight) {
+    int w = (segWeight > 0) ? segWeight : 1;
+    int oppDir = (currDir + 2) % 4;
+    int arrivedNode = currNode;
+
+    if (isBacktracking && dfsTop > 0) {
+        // When backtracking, pop the exact parent junction from the DFS stack (zero coordinate drift)
+        arrivedNode = dfsStack[--dfsTop];
     } else {
-        if (dfsStackTop < MAX_GRAPH_NODES) {
-            dfsStack[dfsStackTop++] = currGraphNode;
-        }
-        isDfsBacktracking = false;
-    }
-    currHeadingDir = outDir;
+        // Calculate the (X, Y) coordinates of the newly reached junction
+        int nx = nodeX[currNode] + DIR_DX[currDir] * w;
+        int ny = nodeY[currNode] + DIR_DY[currDir] * w;
 
+        // Check if a junction near (nx, ny) was already mapped earlier (loop closure detection)
+        arrivedNode = -1;
+        for (int i = 0; i < numNodes; i++) {
+            if (std::abs(nodeX[i] - nx) <= COORD_SNAP && std::abs(nodeY[i] - ny) <= COORD_SNAP) {
+                arrivedNode = i;
+                break;
+            }
+        }
+
+        // If this is a brand-new junction coordinate, allocate a new node ID
+        if (arrivedNode == -1) {
+            arrivedNode = (numNodes < MAX_NODES - 1) ? numNodes++ : (MAX_NODES - 1);
+            nodeX[arrivedNode] = nx;
+            nodeY[arrivedNode] = ny;
+        }
+
+        // Store the bidirectional weighted edge between currNode and arrivedNode
+        if (w < adjWeight[currNode][currDir]) {
+            adjNode[currNode][currDir] = arrivedNode;
+            adjWeight[currNode][currDir] = w;
+            adjNode[arrivedNode][oppDir] = currNode;
+            adjWeight[arrivedNode][oppDir] = w;
+        }
+    }
+
+    currNode = arrivedNode;
+    return arrivedNode;
+}
+
+// Chooses the next turn during Dry Run using DFS on the coordinate graph (Left -> Straight -> Right)
+char chooseDfsTurn(int segWeight, bool hasL, bool hasS, bool hasR, bool isDeadEnd) {
+    int u = arriveAtGraphNode(segWeight);
+    char chosen = 'B';
+
+    if (isDeadEnd) {
+        // Dead end: turn 180 degrees Back ('B') and backtrack to the previous junction
+        chosen = 'B';
+        isBacktracking = true;
+    } else {
+        int dirL = (currDir + 3) % 4; // Absolute compass direction to our Left
+        int dirS = currDir;           // Absolute compass direction Straight ahead
+        int dirR = (currDir + 1) % 4; // Absolute compass direction to our Right
+
+        // Pick the first UNEXPLORED branch in priority order: Left -> Straight -> Right
+        if (hasL && adjNode[u][dirL] == -1) {
+            chosen = 'L';
+            if (dfsTop < MAX_NODES - 1) dfsStack[dfsTop++] = u;
+            isBacktracking = false;
+        } else if (hasS && adjNode[u][dirS] == -1) {
+            chosen = 'S';
+            if (dfsTop < MAX_NODES - 1) dfsStack[dfsTop++] = u;
+            isBacktracking = false;
+        } else if (hasR && adjNode[u][dirR] == -1) {
+            chosen = 'R';
+            if (dfsTop < MAX_NODES - 1) dfsStack[dfsTop++] = u;
+            isBacktracking = false;
+        } else {
+            // All branches at this junction have been explored: backtrack toward parent on dfsStack
+            if (dfsTop > 0) {
+                int parent = dfsStack[dfsTop - 1];
+                for (int d = 0; d < 4; d++) {
+                    if (adjNode[u][d] == parent) {
+                        chosen = deltaDirToTurn(currDir, d);
+                        break;
+                    }
+                }
+            }
+            isBacktracking = true;
+        }
+    }
+
+    // Record the turn in pathTurns[] and update our current compass direction
     if (pathLen < 126) {
-        pathTurns[pathLen++] = chosenTurn;
+        pathTurns[pathLen++] = chosen;
         pathTurns[pathLen] = '\0';
+        reduceDeadEndsInPath(pathTurns, pathLen);
     }
-    reduceDeadEndsInPath(pathTurns, pathLen);
+    currDir = (currDir + turnToDeltaDir(chosen)) % 4;
+    return chosen;
 }
 
-char chooseDfsTurnAndRecord(int segWeight, bool leftBranch, bool straightExists, bool rightBranch, int coordTol = COORD_SNAP_TOL) {
-    arriveAtGraphNode(segWeight, coordTol);
+// Runs Dijkstra's algorithm from START (Node 0) to endNode and writes the shortest "LSR..." command string
+void computeDijkstraShortestPath(int endNode) {
+    int dist[MAX_NODES];
+    bool visited[MAX_NODES];
+    int parentNode[MAX_NODES];
+    int parentDir[MAX_NODES];
 
-    char chosenTurn = 'B';
-    if (leftBranch || straightExists || rightBranch) {
-        int dirL = (currHeadingDir + 3) % 4;
-        int dirS = currHeadingDir;
-        int dirR = (currHeadingDir + 1) % 4;
-
-        // DFS Priority 1: Explore first unvisited branch in L -> S -> R order
-        if (leftBranch && adjNode[currGraphNode][dirL] == -1)          chosenTurn = 'L';
-        else if (straightExists && adjNode[currGraphNode][dirS] == -1) chosenTurn = 'S';
-        else if (rightBranch && adjNode[currGraphNode][dirR] == -1)    chosenTurn = 'R';
-        else {
-            // DFS Priority 2: All branches visited -> backtrack along DFS parent edge
-            if (dfsStackTop > 0) {
-                int parent = dfsStack[dfsStackTop - 1];
-                if (leftBranch && adjNode[currGraphNode][dirL] == parent)          chosenTurn = 'L';
-                else if (straightExists && adjNode[currGraphNode][dirS] == parent) chosenTurn = 'S';
-                else if (rightBranch && adjNode[currGraphNode][dirR] == parent)    chosenTurn = 'R';
-            }
-            if (chosenTurn == 'B') {
-                if (leftBranch)          chosenTurn = 'L';
-                else if (straightExists) chosenTurn = 'S';
-                else if (rightBranch)    chosenTurn = 'R';
-            }
-        }
-    }
-
-    departFromGraphNode(chosenTurn);
-    return chosenTurn;
-}
-
-// Runs Dijkstra's algorithm on the mapped coordinate graph to find the shortest weighted
-// path from startNode to targetNode and generates the LSR... turn command string.
-int computeDijkstraShortestPath(int startNode, int targetNode, char outCommands[], int &outLen) {
-    int dist[MAX_GRAPH_NODES];
-    bool visited[MAX_GRAPH_NODES];
-    int parentNode[MAX_GRAPH_NODES];
-    int parentDir[MAX_GRAPH_NODES];
-
-    for (int i = 0; i < numGraphNodes; i++) {
-        dist[i] = INF_WEIGHT;
+    for (int i = 0; i < numNodes; i++) {
+        dist[i] = INF_COST;
         visited[i] = false;
         parentNode[i] = -1;
         parentDir[i] = -1;
     }
-    dist[startNode] = 0;
+    dist[0] = 0;
 
-    for (int step = 0; step < numGraphNodes; step++) {
+    // Standard Dijkstra loop: repeatedly relax edges from the closest unvisited node
+    for (int step = 0; step < numNodes; step++) {
         int u = -1;
-        for (int i = 0; i < numGraphNodes; i++) {
-            if (!visited[i] && (u == -1 || dist[i] < dist[u])) {
+        int bestDist = INF_COST;
+        for (int i = 0; i < numNodes; i++) {
+            if (!visited[i] && dist[i] < bestDist) {
+                bestDist = dist[i];
                 u = i;
             }
         }
-        if (u == -1 || dist[u] >= INF_WEIGHT || u == targetNode) break;
+        if (u == -1 || u == endNode) break;
         visited[u] = true;
 
         for (int d = 0; d < 4; d++) {
@@ -364,105 +369,86 @@ int computeDijkstraShortestPath(int startNode, int targetNode, char outCommands[
         }
     }
 
-    if (targetNode < 0 || targetNode >= numGraphNodes || dist[targetNode] >= INF_WEIGHT) {
-        return INF_WEIGHT;
-    }
-
-    int edgeDirs[MAX_GRAPH_NODES];
+    // Trace the shortest path backward from endNode to Start (Node 0)
+    int edgeDirs[MAX_NODES];
     int numEdges = 0;
-    int curr = targetNode;
-    while (curr != startNode && curr != -1 && numEdges < MAX_GRAPH_NODES) {
+    int curr = endNode;
+    while (curr != 0 && curr != -1 && numEdges < MAX_NODES - 1) {
         edgeDirs[numEdges++] = parentDir[curr];
         curr = parentNode[curr];
     }
 
-    for (int i = 0; i < numEdges / 2; i++) {
-        int tmp = edgeDirs[i];
-        edgeDirs[i] = edgeDirs[numEdges - 1 - i];
-        edgeDirs[numEdges - 1 - i] = tmp;
-    }
-
-    outLen = 0;
-    for (int i = 1; i < numEdges; i++) {
-        outCommands[outLen++] = deltaDirToTurn(edgeDirs[i - 1], edgeDirs[i]);
-    }
-    outCommands[outLen] = '\0';
-    return dist[targetNode];
-}
-
-// ---- 6. Motor Driver Functions (L298N Appendix A) ----
-
-void driveOneMotor(int pinA, int pinB, int pinPwm, int speed) {
-    if (speed > 0) {
-        digitalWrite(pinA, HIGH);
-        digitalWrite(pinB, LOW);
-        analogWrite(pinPwm, speed);
-    } else if (speed < 0) {
-        digitalWrite(pinA, LOW);
-        digitalWrite(pinB, HIGH);
-        analogWrite(pinPwm, -speed);
+    // Convert consecutive edge directions into "LSR..." junction turn commands
+    if (curr == 0 && numEdges > 0) {
+        pathLen = 0;
+        for (int i = numEdges - 1; i > 0; i--) {
+            int inDir = edgeDirs[i];
+            int outDir = edgeDirs[i - 1];
+            pathTurns[pathLen++] = deltaDirToTurn(inDir, outDir);
+        }
+        pathTurns[pathLen] = '\0';
     } else {
-        digitalWrite(pinA, LOW);
-        digitalWrite(pinB, LOW);
-        analogWrite(pinPwm, 0);
+        // Fallback if graph is disconnected: use algebraic dead-end reduction
+        reduceDeadEndsInPath(pathTurns, pathLen);
     }
 }
 
+// ============================================================================
+// 6. L298N MOTOR DRIVER & SENSOR-LOCKED TURN FUNCTIONS
+// ============================================================================
+
+// Drives one motor on the L298N using two direction pins and one PWM speed pin
+void driveOneMotor(int pinA, int pinB, int pinPwm, int speed) {
+    digitalWrite(pinA, (speed > 0) ? HIGH : LOW);           // HIGH when driving forward
+    digitalWrite(pinB, (speed < 0) ? HIGH : LOW);           // HIGH when driving in reverse
+    analogWrite(pinPwm, (speed >= 0) ? speed : -speed);     // Always send positive PWM magnitude (0..255)
+}
+
+// Clamps and sends left and right motor speed commands to the L298N motor driver
 void setMotors(int leftSpeed, int rightSpeed) {
     clampMotorCommands(leftSpeed, rightSpeed, MAX_PWM);
     driveOneMotor(PIN_IN1, PIN_IN2, PIN_ENA, leftSpeed);
     driveOneMotor(PIN_IN3, PIN_IN4, PIN_ENB, rightSpeed);
 }
 
+// Forward declaration so executeTurn() can read the sensors while turning
 void readSensors(int raw[5], float norm[5]);
 
+// Spins the robot for a 90-degree ('L' or 'R') or 180-degree ('B') turn until the center sensor finds the line
 void executeTurn(char turn) {
     if (turn == 'S') {
-        junctionCooldown = 80;
+        junctionCooldown = 80; // Going straight: ignore junction triggers for 800 ms while crossing
         return;
     }
 
-    if (turn == 'L') {
-        setMotors(-TURN_SPEED, +TURN_SPEED);
-        delay(BLIND_TURN_90_MS);
-        unsigned long startMs = millis();
-        while (millis() - startMs < 650) {
-            int raw[5]; float norm[5];
-            readSensors(raw, norm);
-            if (norm[2] > LINE_THRESH) break;
-            delay(5);
-        }
-    } else if (turn == 'R') {
-        setMotors(+TURN_SPEED, -TURN_SPEED);
-        delay(BLIND_TURN_90_MS);
-        unsigned long startMs = millis();
-        while (millis() - startMs < 650) {
-            int raw[5]; float norm[5];
-            readSensors(raw, norm);
-            if (norm[2] > LINE_THRESH) break;
-            delay(5);
-        }
-    } else if (turn == 'B') {
-        setMotors(+TURN_SPEED, -TURN_SPEED);
-        delay(BLIND_TURN_180_MS);
-        unsigned long startMs = millis();
-        while (millis() - startMs < 800) {
-            int raw[5]; float norm[5];
-            readSensors(raw, norm);
-            if (norm[2] > LINE_THRESH) break;
-            delay(5);
-        }
+    int leftSpin  = (turn == 'L') ? -TURN_SPEED : +TURN_SPEED; // Left turn spins CCW; Right/Back spins CW
+    int rightSpin = (turn == 'L') ? +TURN_SPEED : -TURN_SPEED;
+    unsigned long blindMs   = (turn == 'B') ? BLIND_TURN_180_MS : BLIND_TURN_90_MS;
+    unsigned long timeoutMs = (turn == 'B') ? 800 : 650;
+
+    setMotors(leftSpin, rightSpin);
+    delay(blindMs); // Spin past the current line first
+
+    unsigned long startMs = millis();
+    while (millis() - startMs < timeoutMs) {
+        int raw[5]; float norm[5];
+        readSensors(raw, norm);
+        if (norm[2] > LINE_THRESH) break; // Stop spinning as soon as center sensor S3 locks onto the new line
+        delay(5);
     }
 
     setMotors(0, 0);
-    delay(20);
+    delay(20);             // Brief pause to stop angular momentum
     prevError = 0.0f;
     lostLineCount = 0;
-    junctionCooldown = 80;
+    junctionCooldown = 80; // Ignore new junction triggers for 800 ms while driving away
 }
 
-// ---- 7. Sensor Reading & Startup Calibration ----
+// ============================================================================
+// 7. SENSOR READING & STARTUP CALIBRATION
+// ============================================================================
 
+// Learns the minimum (black floor) and maximum (white line) readings for all 5 sensors at startup
 void calibrateSensors() {
     Serial.println("Starting 3-second calibration... sweep sensors over the line!");
     unsigned long startMs = millis();
@@ -480,55 +466,68 @@ void calibrateSensors() {
         delay(10);
     }
 
+    // Fallback: if any sensor was not swept over both floor and line, use globalMin/globalMax
     for (int i = 0; i < 5; i++) {
         if (sensorMax[i] - sensorMin[i] < 100) {
-            if (globalMax - globalMin >= 100) {
-                sensorMin[i] = globalMin;
-                sensorMax[i] = globalMax;
-            } else {
-                sensorMin[i] = 200;
-                sensorMax[i] = 3800;
-            }
+            sensorMin[i] = (globalMax - globalMin >= 100) ? globalMin : 200;
+            sensorMax[i] = (globalMax - globalMin >= 100) ? globalMax : 3800;
         }
     }
     Serial.println("Calibration done!");
 }
 
+// Reads all 5 IR sensors and fills both raw (0..4095) and normalized (0.0..1.0) arrays
 void readSensors(int raw[5], float norm[5]) {
     for (int i = 0; i < 5; i++) {
         raw[i] = analogRead(SENSOR_PINS[i]);
         norm[i] = normalizeSensor(raw[i], sensorMin[i], sensorMax[i]);
     }
 }
+//////////////////////////////////////////////////////////////////////////////////////
 
-// ---- 8. Arduino setup() and loop() ----
+
+
+
+
+
+
+
+
+
+// ============================================================================
+// 8. ARDUINO SETUP() AND MAIN LOOP()
+// ============================================================================
 
 void setup() {
+    // 1. Initialize Serial telemetry at 115200 baud (Appendix A requirement)
     Serial.begin(115200);
 
-    for (int i = 0; i < 5; i++) {
-        pinMode(SENSOR_PINS[i], INPUT);
-    }
+    // 2. Configure the 5 IR sensor pins as INPUT (exact Appendix A pinout)
+    pinMode(PIN_IR_S1, INPUT);
+    pinMode(PIN_IR_S2, INPUT);
+    pinMode(PIN_IR_S3, INPUT);
+    pinMode(PIN_IR_S4, INPUT);
+    pinMode(PIN_IR_S5, INPUT);
 
+    // 3. Configure the 6 L298N motor driver pins as OUTPUT (exact Appendix A pinout)
     pinMode(PIN_ENA, OUTPUT);
     pinMode(PIN_IN1, OUTPUT);
     pinMode(PIN_IN2, OUTPUT);
     pinMode(PIN_ENB, OUTPUT);
     pinMode(PIN_IN3, OUTPUT);
     pinMode(PIN_IN4, OUTPUT);
-    pinMode(PIN_END_LED, OUTPUT);
 
+    // 4. Stop motors, initialize maze graph, and run 3-second sensor calibration
     setMotors(0, 0);
-    digitalWrite(PIN_END_LED, LOW);
-
     initMazeGraph();
     calibrateSensors();
     lastLoopMs = millis();
 }
 
 void loop() {
-    if (allRunsFinished) return;
+    if (allRunsFinished) return; // Do nothing once both Dry Run and Actual Run are complete
 
+    // Run the control loop at a steady 10 ms (100 Hz) interval
     unsigned long nowMs = millis();
     if (nowMs - lastLoopMs < LOOP_MS) return;
     lastLoopMs = nowMs;
@@ -536,11 +535,14 @@ void loop() {
     if (junctionCooldown > 0) junctionCooldown--;
     segmentLoops++;
 
+    // Read all 5 IR sensors
     int raw[5];
     float norm[5];
     readSensors(raw, norm);
 
-    // 1. Detect Junction or End Box trigger
+    // ------------------------------------------------------------------------
+    // STEP 1: DETECT 90-DEGREE TURNS, JUNCTIONS, OR THE 400x400 MM END BOX
+    // ------------------------------------------------------------------------
     bool isCentered = (std::fabs(currentPos) < 0.65f);
     bool leftBranch = isCentered && (norm[0] > LINE_THRESH && norm[1] > LINE_THRESH);
     bool rightBranch = isCentered && (norm[4] > LINE_THRESH && norm[3] > LINE_THRESH);
@@ -549,8 +551,7 @@ void loop() {
                       norm[4] > LINE_THRESH);
 
     if (junctionCooldown == 0 && (leftBranch || rightBranch || allFiveOn)) {
-        // Roll forward onto junction center (48 mm from sensor bar to wheel axle)
-        // Latch side branches during the initial 80 ms sweep across the cross-line
+        // Roll straight forward for 260 ms so the wheels sit directly over the junction center
         setMotors(BASE_SPEED, BASE_SPEED);
         for (unsigned long elapsed = 0; elapsed < ROLL_FORWARD_MS; elapsed += 10) {
             delay(10);
@@ -562,23 +563,20 @@ void loop() {
         }
         readSensors(raw, norm);
 
-        // Only the 400x400 mm solid END box keeps all 5 sensors high after rolling forward
+        // If all 5 sensors are STILL on white after rolling forward, we reached the 400x400 mm END box!
         bool stillAllFiveOn = (norm[0] > LINE_THRESH && norm[1] > LINE_THRESH &&
                                norm[2] > LINE_THRESH && norm[3] > LINE_THRESH &&
                                norm[4] > LINE_THRESH);
 
         if (stillAllFiveOn) {
-            setMotors(0, 0);
-            digitalWrite(PIN_END_LED, HIGH);
+            setMotors(0, 0); // Stop motors on the END box
 
             if (!isReplayMode) {
-                int endNode = arriveAtGraphNode(segmentLoops, COORD_SNAP_TOL);
-                int shortestWeight = computeDijkstraShortestPath(0, endNode, pathTurns, pathLen);
-                Serial.printf("\nDRY RUN DONE! Mapped Nodes = %d | Shortest Weight = %d | Optimal Shortest Path = %s\n",
-                              numGraphNodes, shortestWeight, pathTurns);
+                int endNode = arriveAtGraphNode(segmentLoops);
+                computeDijkstraShortestPath(endNode);
+                Serial.printf("\nDRY RUN DONE! Dijkstra Optimal Shortest Path = %s\n", pathTurns);
                 Serial.println("Place bot back at START within 5 seconds for Actual Run replay...");
                 delay(REPLAY_WAIT_MS);
-                digitalWrite(PIN_END_LED, LOW);
                 isReplayMode = true;
                 replayIndex = 0;
                 lostLineCount = 0;
@@ -592,82 +590,89 @@ void loop() {
             }
         }
 
+        // Check if a straight line continues ahead of the sensor array
         bool straightExists = (norm[1] > LINE_THRESH || norm[2] > LINE_THRESH || norm[3] > LINE_THRESH);
 
+        // Choose turn: replay pre-computed Dijkstra "LSR..." command in Actual Run, or explore via DFS in Dry Run
         char chosenTurn = 'S';
         if (isReplayMode && replayIndex < pathLen) {
             chosenTurn = pathTurns[replayIndex++];
         } else {
-            chosenTurn = chooseDfsTurnAndRecord(segmentLoops, leftBranch, straightExists, rightBranch, COORD_SNAP_TOL);
+            chosenTurn = chooseDfsTurn(segmentLoops, leftBranch, straightExists, rightBranch, false);
         }
-
         segmentLoops = 0;
         executeTurn(chosenTurn);
         return;
     }
 
-    // 2. Line Tracking with Weighted Centroid PD/PID Control
+    // ------------------------------------------------------------------------
+    // STEP 2: NORMAL LINE FOLLOWING USING WEIGHTED CENTROID & PD CONTROL
+    // ------------------------------------------------------------------------
     bool lineValid = computeLinePosition(norm, currentPos);
     int leftCmd = 0;
     int rightCmd = 0;
 
     if (lineValid) {
-        if (lostLineCount > 0) prevError = currentPos;
+        if (lostLineCount > 0) prevError = currentPos; // Prevent derivative spike when re-entering line
         lostLineCount = 0;
 
-        float error = currentPos;
-        float pTerm = KP_GAIN * error;
+        float error = currentPos;                      // Error is distance from center sensor (0.0)
+        float pTerm = KP_GAIN * error;                 // Proportional term
 
-        integralSum += error * DT_SEC;
+        integralSum += error * DT_SEC;                 // Integral term (clamped; 0 when KI_GAIN=0)
         if (integralSum > INTEGRAL_MAX)  integralSum = INTEGRAL_MAX;
         if (integralSum < -INTEGRAL_MAX) integralSum = -INTEGRAL_MAX;
         float iTerm = KI_GAIN * integralSum;
 
-        float dTerm = KD_GAIN * ((error - prevError) / DT_SEC);
+        float dTerm = KD_GAIN * ((error - prevError) / DT_SEC); // Derivative damping term
         if (dTerm > 60.0f)  dTerm = 60.0f;
         if (dTerm < -60.0f) dTerm = -60.0f;
         prevError = error;
 
         lastCorrection = pTerm + iTerm + dTerm;
-
         int steer = (int)lastCorrection;
-        int effectiveBase = (std::fabs(currentPos) > 0.6f) ? 80 : BASE_SPEED;
+
+        // Slow down slightly when error is large on tight curves
+        int effectiveBase = (std::fabs(currentPos) > 0.6f) ? CORNER_SPEED : BASE_SPEED;
         leftCmd = effectiveBase + steer;
         rightCmd = effectiveBase - steer;
     } else {
-        // 3. Lost Line & Dead-End Handling
+        // --------------------------------------------------------------------
+        // STEP 3: LOST-LINE & DEAD-END ERROR HANDLING (4 STAGES)
+        // --------------------------------------------------------------------
         lostLineCount++;
 
         if (lostLineCount <= HOLD_LOOPS) {
+            // Stage 1 (first 50 ms): hold last steering command across small line gaps
             int steer = (int)lastCorrection;
             leftCmd = BASE_SPEED + steer;
             rightCmd = BASE_SPEED - steer;
         } else if (lostLineCount >= DEAD_END_LOOPS && !isReplayMode) {
-            chooseDfsTurnAndRecord(segmentLoops, false, false, false, COORD_SNAP_TOL);
+            // Stage 2 (120 ms of blank floor in Dry Run): Dead End! Map node and turn 180 deg ('B')
+            char chosenTurn = chooseDfsTurn(segmentLoops, false, false, false, true);
             segmentLoops = 0;
-            executeTurn('B');
+            executeTurn(chosenTurn);
             lostLineCount = 0;
             return;
         } else if (lostLineCount <= STOP_TIMEOUT_LOOPS) {
-            if (currentPos >= 0.0f) {
-                leftCmd = +TURN_SPEED;
-                rightCmd = -TURN_SPEED;
-            } else {
-                leftCmd = -TURN_SPEED;
-                rightCmd = +TURN_SPEED;
-            }
+            // Stage 3 (up to 600 ms): spin toward the last known line side to recover
+            leftCmd  = (currentPos >= 0.0f) ? +TURN_SPEED : -TURN_SPEED;
+            rightCmd = (currentPos >= 0.0f) ? -TURN_SPEED : +TURN_SPEED;
         } else {
+            // Stage 4 (after 600 ms): safe stop so the robot never runs away
             leftCmd = 0;
             rightCmd = 0;
         }
     }
 
+    // Clamp motor speeds to [-255, +255] and update the L298N driver
     clampMotorCommands(leftCmd, rightCmd, MAX_PWM);
     setMotors(leftCmd, rightCmd);
 
+    // Stream live telemetry over Serial (Appendix A requirement)
     Serial.printf(
-        "s=[%4d,%4d,%4d,%4d,%4d] | err=%+.2f | L=%+4d R=%+4d | node=%d(%+d,%+d) | path=%s\n",
+        "s=[%4d,%4d,%4d,%4d,%4d] | err=%+.2f | L=%+4d R=%+4d | path=%s\n",
         raw[0], raw[1], raw[2], raw[3], raw[4],
-        currentPos, leftCmd, rightCmd, currGraphNode, nodeX[currGraphNode], nodeY[currGraphNode], pathTurns
+        currentPos, leftCmd, rightCmd, pathTurns
     );
 }

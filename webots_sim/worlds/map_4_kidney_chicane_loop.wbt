@@ -1,0 +1,3581 @@
+#VRML_SIM R2025a utf8
+
+EXTERNPROTO "../protos/LineBot.proto"
+
+WorldInfo {
+  info [
+    "Map 4: Random Kidney & Chicane Curved Track"
+  ]
+  title "Map 4: Random Kidney & Chicane Curved Track"
+  basicTimeStep 10
+  contactProperties [
+    ContactProperties {
+      material1 "caster_slip"
+      coulombFriction [ 0.01 ]
+      bounce 0
+    }
+    ContactProperties {
+      material1 "wheel_grip"
+      coulombFriction [ 2 ]
+      bounce 0
+    }
+  ]
+}
+Viewpoint {
+  orientation -0.57735 0.57735 0.57735 2.0944
+  position 0.0 0.0 3.4
+}
+Background {
+  skyColor [ 0.15 0.18 0.22 ]
+}
+DirectionalLight {
+  ambientIntensity 0.6
+  direction -0.3 -0.5 -1
+  intensity 1.8
+  castShadows TRUE
+}
+Solid {
+  translation 0 0 -0.005
+  name "arena_floor"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 0.05 0.05 0.05
+        roughness 0.9
+        metalness 0
+      }
+      geometry Box {
+        size 2.300 2.300 0.010
+      }
+    }
+  ]
+  boundingObject Box {
+    size 2.300 2.300 0.010
+  }
+}
+Solid {
+  translation -0.4874 -0.5541 0.0001
+  rotation 0 0 1 -0.31593
+  name "curve_seg_0"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0405 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0405 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.4614 -0.5613 0.0001
+  rotation 0 0 1 -0.22464
+  name "curve_seg_1"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0415 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0415 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.4339 -0.5665 0.0001
+  rotation 0 0 1 -0.14844
+  name "curve_seg_2"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0425 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0425 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.4052 -0.5698 0.0001
+  rotation 0 0 1 -0.08575
+  name "curve_seg_3"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0435 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0435 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.3752 -0.5716 0.0001
+  rotation 0 0 1 -0.03484
+  name "curve_seg_4"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0445 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0445 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.3443 -0.5721 0.0001
+  rotation 0 0 1 0.00583
+  name "curve_seg_5"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0454 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0454 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.3125 -0.5714 0.0001
+  rotation 0 0 1 0.03759
+  name "curve_seg_6"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0462 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0462 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.2801 -0.5698 0.0001
+  rotation 0 0 1 0.06147
+  name "curve_seg_7"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0468 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0468 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.2472 -0.5674 0.0001
+  rotation 0 0 1 0.07826
+  name "curve_seg_8"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0473 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0473 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.2139 -0.5647 0.0001
+  rotation 0 0 1 0.08851
+  name "curve_seg_9"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0476 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0476 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.1804 -0.5616 0.0001
+  rotation 0 0 1 0.09256
+  name "curve_seg_10"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0477 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0477 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.1469 -0.5586 0.0001
+  rotation 0 0 1 0.09054
+  name "curve_seg_11"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0476 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0476 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.1135 -0.5557 0.0001
+  rotation 0 0 1 0.08238
+  name "curve_seg_12"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0474 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0474 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.0804 -0.5532 0.0001
+  rotation 0 0 1 0.06782
+  name "curve_seg_13"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0470 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0470 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.0478 -0.5513 0.0001
+  rotation 0 0 1 0.04638
+  name "curve_seg_14"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0464 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0464 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.0158 -0.5503 0.0001
+  rotation 0 0 1 0.01735
+  name "curve_seg_15"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0457 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0457 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.0158 -0.5503 0.0001
+  rotation 0 0 1 -0.02029
+  name "curve_seg_16"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0456 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0456 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.0477 -0.5515 0.0001
+  rotation 0 0 1 -0.05443
+  name "curve_seg_17"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0462 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0462 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.0800 -0.5537 0.0001
+  rotation 0 0 1 -0.07980
+  name "curve_seg_18"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0467 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0467 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.1128 -0.5566 0.0001
+  rotation 0 0 1 -0.09710
+  name "curve_seg_19"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0471 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0471 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.1458 -0.5600 0.0001
+  rotation 0 0 1 -0.10681
+  name "curve_seg_20"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0473 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0473 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.1789 -0.5636 0.0001
+  rotation 0 0 1 -0.10922
+  name "curve_seg_21"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0473 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0473 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.2119 -0.5671 0.0001
+  rotation 0 0 1 -0.10439
+  name "curve_seg_22"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0472 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0472 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.2448 -0.5704 0.0001
+  rotation 0 0 1 -0.09219
+  name "curve_seg_23"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0469 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0469 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.2775 -0.5730 0.0001
+  rotation 0 0 1 -0.07227
+  name "curve_seg_24"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0465 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0465 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.3097 -0.5749 0.0001
+  rotation 0 0 1 -0.04407
+  name "curve_seg_25"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0460 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0460 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.3414 -0.5757 0.0001
+  rotation 0 0 1 -0.00681
+  name "curve_seg_26"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0454 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0454 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.3723 -0.5752 0.0001
+  rotation 0 0 1 0.04045
+  name "curve_seg_27"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0446 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0446 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.4025 -0.5731 0.0001
+  rotation 0 0 1 0.09882
+  name "curve_seg_28"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0439 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0439 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.4318 -0.5692 0.0001
+  rotation 0 0 1 0.16942
+  name "curve_seg_29"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0431 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0431 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.4599 -0.5632 0.0001
+  rotation 0 0 1 0.25315
+  name "curve_seg_30"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0425 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0425 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.4868 -0.5548 0.0001
+  rotation 0 0 1 0.35035
+  name "curve_seg_31"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0420 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0420 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.5128 -0.5441 0.0001
+  rotation 0 0 1 0.43413
+  name "curve_seg_32"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0423 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0423 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.5385 -0.5312 0.0001
+  rotation 0 0 1 0.49221
+  name "curve_seg_33"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0431 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0431 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.5640 -0.5166 0.0001
+  rotation 0 0 1 0.54658
+  name "curve_seg_34"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0438 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0438 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.5893 -0.5003 0.0001
+  rotation 0 0 1 0.59818
+  name "curve_seg_35"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0444 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0444 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.6141 -0.4825 0.0001
+  rotation 0 0 1 0.64786
+  name "curve_seg_36"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0448 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0448 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.6384 -0.4632 0.0001
+  rotation 0 0 1 0.69637
+  name "curve_seg_37"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0452 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0452 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.6619 -0.4425 0.0001
+  rotation 0 0 1 0.74438
+  name "curve_seg_38"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0454 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0454 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.6845 -0.4206 0.0001
+  rotation 0 0 1 0.79256
+  name "curve_seg_39"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0456 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0456 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.7062 -0.3976 0.0001
+  rotation 0 0 1 0.84153
+  name "curve_seg_40"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0456 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0456 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.7266 -0.3735 0.0001
+  rotation 0 0 1 0.89191
+  name "curve_seg_41"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0455 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0455 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.7457 -0.3486 0.0001
+  rotation 0 0 1 0.94435
+  name "curve_seg_42"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0453 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0453 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.7632 -0.3228 0.0001
+  rotation 0 0 1 0.99950
+  name "curve_seg_43"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0451 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0451 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.7792 -0.2964 0.0001
+  rotation 0 0 1 1.05805
+  name "curve_seg_44"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0447 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0447 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.7933 -0.2694 0.0001
+  rotation 0 0 1 1.12071
+  name "curve_seg_45"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0443 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0443 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.8055 -0.2419 0.0001
+  rotation 0 0 1 1.18820
+  name "curve_seg_46"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0439 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0439 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.8155 -0.2140 0.0001
+  rotation 0 0 1 1.26123
+  name "curve_seg_47"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0434 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0434 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.8235 -0.1854 0.0001
+  rotation 0 0 1 1.33808
+  name "curve_seg_48"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0441 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0441 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.8296 -0.1550 0.0001
+  rotation 0 0 1 1.40584
+  name "curve_seg_49"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0458 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0458 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.8339 -0.1227 0.0001
+  rotation 0 0 1 1.46408
+  name "curve_seg_50"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0474 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0474 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.8367 -0.0888 0.0001
+  rotation 0 0 1 1.51521
+  name "curve_seg_51"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0488 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0488 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.8378 -0.0535 0.0001
+  rotation 0 0 1 1.56107
+  name "curve_seg_52"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0499 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0499 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.8374 -0.0171 0.0001
+  rotation 0 0 1 1.60311
+  name "curve_seg_53"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0508 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0508 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.8355 0.0199 0.0001
+  rotation 0 0 1 1.64250
+  name "curve_seg_54"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0515 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0515 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.8321 0.0574 0.0001
+  rotation 0 0 1 1.68021
+  name "curve_seg_55"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0519 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0519 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.8272 0.0950 0.0001
+  rotation 0 0 1 1.71713
+  name "curve_seg_56"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0520 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0520 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.8210 0.1325 0.0001
+  rotation 0 0 1 1.75406
+  name "curve_seg_57"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0519 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0519 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.8134 0.1694 0.0001
+  rotation 0 0 1 1.79182
+  name "curve_seg_58"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0515 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0515 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.8046 0.2055 0.0001
+  rotation 0 0 1 1.83128
+  name "curve_seg_59"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0509 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0509 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.7945 0.2405 0.0001
+  rotation 0 0 1 1.87341
+  name "curve_seg_60"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0500 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0500 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.7832 0.2740 0.0001
+  rotation 0 0 1 1.91938
+  name "curve_seg_61"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0489 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0489 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.7707 0.3059 0.0001
+  rotation 0 0 1 1.97062
+  name "curve_seg_62"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0475 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0475 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.7571 0.3357 0.0001
+  rotation 0 0 1 2.02895
+  name "curve_seg_63"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0460 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0460 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.7419 0.3639 0.0001
+  rotation 0 0 1 2.09507
+  name "curve_seg_64"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0462 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0462 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.7245 0.3921 0.0001
+  rotation 0 0 1 2.15467
+  name "curve_seg_65"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0481 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0481 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.7046 0.4206 0.0001
+  rotation 0 0 1 2.20623
+  name "curve_seg_66"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0496 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0496 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.6824 0.4492 0.0001
+  rotation 0 0 1 2.25233
+  name "curve_seg_67"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0507 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0507 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.6584 0.4775 0.0001
+  rotation 0 0 1 2.29495
+  name "curve_seg_68"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0515 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0515 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.6329 0.5052 0.0001
+  rotation 0 0 1 2.33567
+  name "curve_seg_69"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0519 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0519 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.6061 0.5320 0.0001
+  rotation 0 0 1 2.37585
+  name "curve_seg_70"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0519 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0519 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.5784 0.5576 0.0001
+  rotation 0 0 1 2.41682
+  name "curve_seg_71"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0515 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0515 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.5501 0.5816 0.0001
+  rotation 0 0 1 2.45996
+  name "curve_seg_72"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0507 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0507 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.5215 0.6037 0.0001
+  rotation 0 0 1 2.50688
+  name "curve_seg_73"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0496 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0496 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.4929 0.6236 0.0001
+  rotation 0 0 1 2.55957
+  name "curve_seg_74"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0481 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0481 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.4647 0.6410 0.0001
+  rotation 0 0 1 2.62068
+  name "curve_seg_75"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0463 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0463 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.4371 0.6556 0.0001
+  rotation 0 0 1 2.69390
+  name "curve_seg_76"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0442 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0442 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.4105 0.6670 0.0001
+  rotation 0 0 1 2.78445
+  name "curve_seg_77"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0418 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0418 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.3852 0.6749 0.0001
+  rotation 0 0 1 2.89983
+  name "curve_seg_78"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0394 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0394 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.3614 0.6790 0.0001
+  rotation 0 0 1 3.05021
+  name "curve_seg_79"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0370 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0370 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.3393 0.6784 0.0001
+  rotation 0 0 1 -2.99829
+  name "curve_seg_80"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0357 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0357 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.3181 0.6725 0.0001
+  rotation 0 0 1 -2.74026
+  name "curve_seg_81"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0366 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0366 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.2976 0.6612 0.0001
+  rotation 0 0 1 -2.54061
+  name "curve_seg_82"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0384 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0384 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.2778 0.6452 0.0001
+  rotation 0 0 1 -2.39612
+  name "curve_seg_83"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0407 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0407 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.2584 0.6254 0.0001
+  rotation 0 0 1 -2.29421
+  name "curve_seg_84"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0429 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0429 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.2395 0.6023 0.0001
+  rotation 0 0 1 -2.22340
+  name "curve_seg_85"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0448 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0448 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.2210 0.5768 0.0001
+  rotation 0 0 1 -2.17554
+  name "curve_seg_86"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0463 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0463 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.2028 0.5496 0.0001
+  rotation 0 0 1 -2.14548
+  name "curve_seg_87"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0473 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0473 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.1848 0.5213 0.0001
+  rotation 0 0 1 -2.13022
+  name "curve_seg_88"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0477 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0477 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.1670 0.4928 0.0001
+  rotation 0 0 1 -2.12841
+  name "curve_seg_89"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0476 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0476 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.1492 0.4647 0.0001
+  rotation 0 0 1 -2.14013
+  name "curve_seg_90"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0469 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0469 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.1315 0.4378 0.0001
+  rotation 0 0 1 -2.16690
+  name "curve_seg_91"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0456 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0456 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.1137 0.4128 0.0001
+  rotation 0 0 1 -2.21211
+  name "curve_seg_92"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0438 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0438 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.0958 0.3904 0.0001
+  rotation 0 0 1 -2.28176
+  name "curve_seg_93"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0416 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0416 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.0777 0.3714 0.0001
+  rotation 0 0 1 -2.38576
+  name "curve_seg_94"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0391 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0391 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.0593 0.3564 0.0001
+  rotation 0 0 1 -2.53912
+  name "curve_seg_95"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0365 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0365 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.0406 0.3452 0.0001
+  rotation 0 0 1 -2.66552
+  name "curve_seg_96"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0351 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0351 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.0219 0.3361 0.0001
+  rotation 0 0 1 -2.72134
+  name "curve_seg_97"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0345 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0345 0.0320 0.0002
+  }
+}
+Solid {
+  translation 0.0031 0.3284 0.0001
+  rotation 0 0 1 -2.78009
+  name "curve_seg_98"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0340 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0340 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.0156 0.3220 0.0001
+  rotation 0 0 1 -2.84156
+  name "curve_seg_99"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0336 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0336 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.0344 0.3168 0.0001
+  rotation 0 0 1 -2.90546
+  name "curve_seg_100"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0333 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0333 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.0531 0.3129 0.0001
+  rotation 0 0 1 -2.97138
+  name "curve_seg_101"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0330 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0330 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.0719 0.3104 0.0001
+  rotation 0 0 1 -3.03883
+  name "curve_seg_102"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0328 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0328 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.0906 0.3091 0.0001
+  rotation 0 0 1 -3.10723
+  name "curve_seg_103"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0328 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0328 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.1094 0.3091 0.0001
+  rotation 0 0 1 3.10723
+  name "curve_seg_104"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0328 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0328 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.1281 0.3104 0.0001
+  rotation 0 0 1 3.03883
+  name "curve_seg_105"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0328 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0328 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.1469 0.3129 0.0001
+  rotation 0 0 1 2.97138
+  name "curve_seg_106"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0330 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0330 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.1656 0.3168 0.0001
+  rotation 0 0 1 2.90546
+  name "curve_seg_107"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0333 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0333 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.1844 0.3220 0.0001
+  rotation 0 0 1 2.84156
+  name "curve_seg_108"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0336 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0336 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.2031 0.3284 0.0001
+  rotation 0 0 1 2.78009
+  name "curve_seg_109"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0340 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0340 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.2219 0.3361 0.0001
+  rotation 0 0 1 2.72134
+  name "curve_seg_110"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0345 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0345 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.2406 0.3452 0.0001
+  rotation 0 0 1 2.66552
+  name "curve_seg_111"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0351 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0351 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.2594 0.3564 0.0001
+  rotation 0 0 1 2.54173
+  name "curve_seg_112"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0368 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0368 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.2783 0.3716 0.0001
+  rotation 0 0 1 2.39603
+  name "curve_seg_113"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0397 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0397 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.2972 0.3910 0.0001
+  rotation 0 0 1 2.29897
+  name "curve_seg_114"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0425 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0425 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.3162 0.4138 0.0001
+  rotation 0 0 1 2.23412
+  name "curve_seg_115"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0449 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0449 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.3352 0.4393 0.0001
+  rotation 0 0 1 2.19149
+  name "curve_seg_116"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0468 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0468 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.3543 0.4667 0.0001
+  rotation 0 0 1 2.16530
+  name "curve_seg_117"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0480 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0480 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.3733 0.4953 0.0001
+  rotation 0 0 1 2.15233
+  name "curve_seg_118"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0487 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0487 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.3924 0.5243 0.0001
+  rotation 0 0 1 2.15113
+  name "curve_seg_119"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0487 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0487 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.4114 0.5529 0.0001
+  rotation 0 0 1 2.16166
+  name "curve_seg_120"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0480 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0480 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.4303 0.5804 0.0001
+  rotation 0 0 1 2.18521
+  name "curve_seg_121"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0467 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0467 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.4491 0.6060 0.0001
+  rotation 0 0 1 2.22484
+  name "curve_seg_122"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0448 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0448 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.4678 0.6290 0.0001
+  rotation 0 0 1 2.28620
+  name "curve_seg_123"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0424 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0424 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.4864 0.6485 0.0001
+  rotation 0 0 1 2.37918
+  name "curve_seg_124"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0396 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0396 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.5048 0.6639 0.0001
+  rotation 0 0 1 2.52051
+  name "curve_seg_125"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0365 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0365 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.5230 0.6744 0.0001
+  rotation 0 0 1 2.73535
+  name "curve_seg_126"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0337 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0337 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.5410 0.6791 0.0001
+  rotation 0 0 1 3.04546
+  name "curve_seg_127"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0320 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0320 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.5591 0.6780 0.0001
+  rotation 0 0 1 -2.92926
+  name "curve_seg_128"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0327 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0327 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.5778 0.6718 0.0001
+  rotation 0 0 1 -2.72495
+  name "curve_seg_129"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0348 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0348 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.5971 0.6614 0.0001
+  rotation 0 0 1 -2.57336
+  name "curve_seg_130"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0373 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0373 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.6169 0.6470 0.0001
+  rotation 0 0 1 -2.45954
+  name "curve_seg_131"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0397 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0397 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.6369 0.6291 0.0001
+  rotation 0 0 1 -2.37153
+  name "curve_seg_132"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0420 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0420 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.6570 0.6082 0.0001
+  rotation 0 0 1 -2.30104
+  name "curve_seg_133"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0441 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0441 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.6770 0.5845 0.0001
+  rotation 0 0 1 -2.24250
+  name "curve_seg_134"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0458 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0458 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.6966 0.5585 0.0001
+  rotation 0 0 1 -2.19211
+  name "curve_seg_135"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0473 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0473 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.7156 0.5306 0.0001
+  rotation 0 0 1 -2.14719
+  name "curve_seg_136"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0483 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0483 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.7339 0.5012 0.0001
+  rotation 0 0 1 -2.10572
+  name "curve_seg_137"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0490 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0490 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.7511 0.4706 0.0001
+  rotation 0 0 1 -2.06607
+  name "curve_seg_138"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0492 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0492 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.7673 0.4394 0.0001
+  rotation 0 0 1 -2.02683
+  name "curve_seg_139"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0491 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0491 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.7820 0.4078 0.0001
+  rotation 0 0 1 -1.98660
+  name "curve_seg_140"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0486 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0486 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.7951 0.3762 0.0001
+  rotation 0 0 1 -1.94389
+  name "curve_seg_141"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0477 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0477 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.8065 0.3451 0.0001
+  rotation 0 0 1 -1.89690
+  name "curve_seg_142"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0465 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0465 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.8158 0.3149 0.0001
+  rotation 0 0 1 -1.84331
+  name "curve_seg_143"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0449 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0449 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.8232 0.2849 0.0001
+  rotation 0 0 1 -1.78158
+  name "curve_seg_144"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0448 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0448 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.8290 0.2538 0.0001
+  rotation 0 0 1 -1.72566
+  name "curve_seg_145"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0466 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0466 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.8333 0.2208 0.0001
+  rotation 0 0 1 -1.67789
+  name "curve_seg_146"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0480 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0480 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.8363 0.1862 0.0001
+  rotation 0 0 1 -1.63622
+  name "curve_seg_147"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0493 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0493 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.8379 0.1504 0.0001
+  rotation 0 0 1 -1.59913
+  name "curve_seg_148"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0503 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0503 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.8384 0.1138 0.0001
+  rotation 0 0 1 -1.56543
+  name "curve_seg_149"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0511 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0511 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.8376 0.0764 0.0001
+  rotation 0 0 1 -1.53416
+  name "curve_seg_150"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0516 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0516 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.8356 0.0388 0.0001
+  rotation 0 0 1 -1.50452
+  name "curve_seg_151"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0518 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0518 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.8326 0.0012 0.0001
+  rotation 0 0 1 -1.47581
+  name "curve_seg_152"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0517 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0517 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.8285 -0.0361 0.0001
+  rotation 0 0 1 -1.44736
+  name "curve_seg_153"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0513 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0513 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.8234 -0.0727 0.0001
+  rotation 0 0 1 -1.41850
+  name "curve_seg_154"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0507 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0507 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.8174 -0.1085 0.0001
+  rotation 0 0 1 -1.38852
+  name "curve_seg_155"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0498 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0498 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.8105 -0.1430 0.0001
+  rotation 0 0 1 -1.35656
+  name "curve_seg_156"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0486 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0486 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.8027 -0.1760 0.0001
+  rotation 0 0 1 -1.32159
+  name "curve_seg_157"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0472 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0472 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.7941 -0.2071 0.0001
+  rotation 0 0 1 -1.28223
+  name "curve_seg_158"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0454 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0454 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.7848 -0.2361 0.0001
+  rotation 0 0 1 -1.23661
+  name "curve_seg_159"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0434 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0434 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.7747 -0.2631 0.0001
+  rotation 0 0 1 -1.18900
+  name "curve_seg_160"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0422 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0422 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.7637 -0.2888 0.0001
+  rotation 0 0 1 -1.14467
+  name "curve_seg_161"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0418 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0418 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.7517 -0.3138 0.0001
+  rotation 0 0 1 -1.09915
+  name "curve_seg_162"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0415 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0415 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.7388 -0.3378 0.0001
+  rotation 0 0 1 -1.05237
+  name "curve_seg_163"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0412 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0412 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.7248 -0.3609 0.0001
+  rotation 0 0 1 -1.00431
+  name "curve_seg_164"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0409 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0409 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.7099 -0.3831 0.0001
+  rotation 0 0 1 -0.95494
+  name "curve_seg_165"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0406 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0406 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.6941 -0.4043 0.0001
+  rotation 0 0 1 -0.90423
+  name "curve_seg_166"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0403 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0403 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.6774 -0.4245 0.0001
+  rotation 0 0 1 -0.85220
+  name "curve_seg_167"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0401 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0401 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.6597 -0.4437 0.0001
+  rotation 0 0 1 -0.79887
+  name "curve_seg_168"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0400 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0400 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.6412 -0.4617 0.0001
+  rotation 0 0 1 -0.74429
+  name "curve_seg_169"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0398 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0398 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.6217 -0.4786 0.0001
+  rotation 0 0 1 -0.68854
+  name "curve_seg_170"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0397 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0397 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.6014 -0.4944 0.0001
+  rotation 0 0 1 -0.63172
+  name "curve_seg_171"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0397 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0397 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.5803 -0.5089 0.0001
+  rotation 0 0 1 -0.57398
+  name "curve_seg_172"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0397 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0397 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.5584 -0.5222 0.0001
+  rotation 0 0 1 -0.51547
+  name "curve_seg_173"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0397 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0397 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.5356 -0.5343 0.0001
+  rotation 0 0 1 -0.45638
+  name "curve_seg_174"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0398 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0398 0.0320 0.0002
+  }
+}
+Solid {
+  translation -0.5120 -0.5450 0.0001
+  rotation 0 0 1 -0.39692
+  name "curve_seg_175"
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        roughness 0
+        metalness 0
+      }
+      geometry Box {
+        size 0.0400 0.0320 0.0002
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.0400 0.0320 0.0002
+  }
+}
+LineBot {
+  translation -0.5456 -0.5351 0.0210
+  rotation 0 0 1 -0.31593
+  name "LineBot"
+  controller "line_bot_py"
+}
